@@ -48,6 +48,9 @@ double winmain::UpdateToFrameRatio;
 winmain::DurationMs winmain::TargetFrameTime;
 optionsStruct& winmain::Options = options::Options;
 
+bool leftTrigger = false;
+bool rightTrigger = false;
+
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
 	WHBProcInit();
@@ -561,6 +564,21 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	case SDL_CONTROLLERBUTTONUP:
 		pb::InputUp({InputTypes::GameController, event->cbutton.button});
+		break;
+	case SDL_CONTROLLERAXISMOTION:
+		if (event->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT) {
+			if (!leftTrigger)
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
+			else
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
+			leftTrigger = !leftTrigger;
+		} else if (event->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
+			if (!rightTrigger)
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
+			else
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
+			rightTrigger = !rightTrigger;
+		}
 		break;
 	default: ;
 	}
