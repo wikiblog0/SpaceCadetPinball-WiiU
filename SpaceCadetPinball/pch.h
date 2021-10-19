@@ -34,6 +34,8 @@
 #include "SDL.h"
 #include <SDL_mixer.h>
 
+#include <whb/log.h>
+
 // MIX_INIT_FLUIDSYNTH was renamed to MIX_INIT_MID in SDL_mixer v2.0.2
 constexpr int MIX_INIT_MID_Proxy =
 #if SDL_MIXER_PATCHLEVEL >= 2
@@ -59,9 +61,13 @@ constexpr char PathSeparator =
 '/';
 #endif
 
+inline void WHBAssert(void* expression, const char* msg) {
+	if (!expression) WHBLogPrintf("ASSERTION FAILED: %s", msg);
+}
 
 /*Use (void) to silent unused warnings.*/
-#define assertm(exp, msg) assert(((void)msg, exp))
+//#define assertm(exp, msg) assert(((void)msg, exp))
+#define assertm(exp, msg) WHBAssert((void*)(exp), msg)
 
 
 inline size_t pgm_save(int width, int height, char* data, FILE* outfile)

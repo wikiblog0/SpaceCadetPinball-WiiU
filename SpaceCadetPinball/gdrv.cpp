@@ -101,6 +101,9 @@ int gdrv::display_palette(ColorRgba* plt)
 	{
 		current_palette[i].rgba.Alpha = 0;
 	}
+	for (int i = 0; i < (sizeof sysPaletteColors) / 4; i++) {
+		current_palette[i].Color = SDL_SwapLE32(current_palette[i].Color);
+	}
 
 	auto pltSrc = &plt[10];
 	auto pltDst = &current_palette[10];
@@ -136,12 +139,12 @@ int gdrv::display_palette(ColorRgba* plt)
 
 void gdrv::fill_bitmap(gdrv_bitmap8* bmp, int width, int height, int xOff, int yOff, uint8_t fillChar)
 {
-	auto color = current_palette[fillChar];
+	auto color = SDL_SwapLE32(current_palette[fillChar].Color);
 	auto bmpPtr = &bmp->BmpBufPtr1[bmp->Width * yOff + xOff];
 	for (; height > 0; --height)
 	{
 		for (int x = width; x > 0; --x)
-			*bmpPtr++ = color;
+			(bmpPtr++)->Color = color;
 		bmpPtr += bmp->Stride - width;
 	}
 }
@@ -149,8 +152,8 @@ void gdrv::fill_bitmap(gdrv_bitmap8* bmp, int width, int height, int xOff, int y
 void gdrv::copy_bitmap(gdrv_bitmap8* dstBmp, int width, int height, int xOff, int yOff, gdrv_bitmap8* srcBmp,
                        int srcXOff, int srcYOff)
 {
-	auto srcPtr = &srcBmp->BmpBufPtr1[srcBmp->Stride * srcYOff + srcXOff];
-	auto dstPtr = &dstBmp->BmpBufPtr1[dstBmp->Stride * yOff + xOff];
+	auto srcPtr = &srcBmp->BmpBufPtr1[srcBmp->Stride * srcYOff + srcXOff].Color;
+	auto dstPtr = &dstBmp->BmpBufPtr1[dstBmp->Stride * yOff + xOff].Color;
 
 	for (int y = height; y > 0; --y)
 	{
@@ -200,7 +203,8 @@ void gdrv::ApplyPalette(gdrv_bitmap8& bmp)
 		auto src = reinterpret_cast<uint8_t*>(bmp.IndexedBmpPtr) + bmp.IndexedStride * y;
 		for (auto x = 0; x < bmp.Width; x++)
 		{
-			*dst++ = current_palette[*src++];
+			(dst++)->Color = SDL_SwapLE32(current_palette[*src++].Color);
+			//(dst++)->Color = (current_palette[*src++].Color);
 		}
 	}
 }

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(SpaceCadetPinball)
+include("${DEVKITPRO}/wut/share/wut.cmake" REQUIRED)
+include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -22,10 +24,12 @@ endif()
 # SDL2main is not needed
 set(SDL2_BUILDING_LIBRARY ON)
 
-find_package(SDL2 REQUIRED)
-FIND_PACKAGE(SDL2_mixer REQUIRED)
+find_package(PkgConfig REQUIRED)
+PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
+PKG_SEARCH_MODULE(SDL2_MIXER REQUIRED SDL2_mixer)
 
-include_directories(${SDL2_INCLUDE_DIR} ${SDL2_MIXER_INCLUDE_DIR})
+include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_MIXER_INCLUDE_DIRS})
+link_directories(${SDL2_LIBRARY_DIRS} ${SDL2_MIXER_LIBRARY_DIRS})
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 foreach(dir ${dirs})
   message(STATUS "Include dir='${dir}'")
@@ -179,6 +183,8 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
+romfs_add(SpaceCadetPinball "res")
+wut_create_rpx(SpaceCadetPinball)
 
 # Skip pch on foreign code
 set_source_files_properties(
@@ -199,7 +205,7 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.16.0" OR ${CMAKE_VERSION} VERSION_EQUAL "
             )
 endif()
 
-target_link_libraries(SpaceCadetPinball ${SDL2_LIBRARY} ${SDL2_MIXER_LIBRARY})
+target_link_libraries(SpaceCadetPinball ${SDL2_LIBRARIES} ${SDL2_MIXER_LIBRARIES})
 
 # On Windows, copy DLL to output
 if(WIN32)

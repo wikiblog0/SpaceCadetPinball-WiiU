@@ -10,6 +10,12 @@
 #include "render.h"
 #include "Sound.h"
 
+#include <whb/proc.h>
+#include <romfs-wiiu.h>
+#include <whb/log_cafe.h>
+#include <whb/log_udp.h>
+#include <whb/log.h>
+
 SDL_Window* winmain::MainWindow = nullptr;
 SDL_Renderer* winmain::Renderer = nullptr;
 ImGuiIO* winmain::ImIO = nullptr;
@@ -44,6 +50,11 @@ optionsStruct& winmain::Options = options::Options;
 
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
+	WHBProcInit();
+	WHBLogCafeInit();
+	WHBLogUdpInit();
+	WHBLogPrintf("passed init");
+	romfsInit();
 	restart = false;
 	bQuit = false;
 
@@ -56,7 +67,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
 		return 1;
 	}
-	BasePath = SDL_GetBasePath();
+	BasePath = "romfs:/";
 
 	pinball::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
 	DatFileName = options::get_string("Pinball Data", pinball::get_rc_string(168, 0));
@@ -76,7 +87,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	(
 		pinball::get_rc_string(38, 0),
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		800, 556,
+		1280, 720,
 		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 	);
 	MainWindow = window;
@@ -110,12 +121,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	ImIO = &io;
 	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
 	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
-
-	auto prefPath = SDL_GetPrefPath(nullptr, "SpaceCadetPinball");
+	auto prefPath = "scp/";
 	auto iniPath = std::string(prefPath) + "imgui_pb.ini";
 	io.IniFilename = iniPath.c_str();
-	SDL_free(prefPath);
-
+	//SDL_free(prefPath);
 	// PB init from message handler
 	{
 		options::init();
@@ -205,7 +214,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			}
 		}
 
-		if (!ProcessWindowMessages() || bQuit)
+		if (!ProcessWindowMessages() || bQuit || !WHBProcIsRunning())
 			break;
 
 		if (has_focus)
@@ -302,6 +311,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	SDL_DestroyWindow(window);
 	ImGui::DestroyContext();
 	SDL_Quit();
+	romfsExit();
+	WHBProcShutdown();
 
 	return return_value;
 }

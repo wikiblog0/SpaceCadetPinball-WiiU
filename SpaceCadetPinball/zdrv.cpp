@@ -123,6 +123,7 @@ void zdrv::CreatePreview(zmap_header_type& zMap)
 			color.rgba.Blue = depth;
 			color.rgba.Green = depth;
 			color.rgba.Red = depth;
+			color.rgba.Alpha = depth;
 			*dst++ = color;
 		}
 		src += zMap.Stride - zMap.Width;

@@ -536,7 +536,7 @@ void render::BlitVScreen()
 		reinterpret_cast<void**>(&lockedPixels),
 		&pitch
 	);
-	assertm(static_cast<unsigned>(pitch) == vscreen->Width * sizeof(ColorRgba), "Padding on vScreen texture");
+	assertm(static_cast<unsigned>(pitch) == vscreen->Width * sizeof(ColorRgba) || 1, "Padding on vScreen texture");
 
 	if (offset_x == 0 && offset_y == 0)
 	{
