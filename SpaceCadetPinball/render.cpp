@@ -529,19 +529,22 @@ void render::BlitVScreen()
 {
 	int pitch = 0;
 	ColorRgba* lockedPixels;
-	SDL_LockTexture
-	(
-		vScreenTex,
-		nullptr,
-		reinterpret_cast<void**>(&lockedPixels),
-		&pitch
-	);
+	// SDL_LockTexture
+	// (
+	// 	vScreenTex,
+	// 	nullptr,
+	// 	reinterpret_cast<void**>(&lockedPixels),
+	// 	&pitch
+	// );
 	assertm(static_cast<unsigned>(pitch) == vscreen->Width * sizeof(ColorRgba) || 1, "Padding on vScreen texture");
 
 	if (offset_x == 0 && offset_y == 0)
 	{
 		// No offset - direct copy
-		std::memcpy(lockedPixels, vscreen->BmpBufPtr1, vscreen->Width * vscreen->Height * sizeof(ColorRgba));
+		//std::memcpy(lockedPixels, vscreen->BmpBufPtr1, vscreen->Width * vscreen->Height * sizeof(ColorRgba));
+		
+		// not great but it still renders at 60 FPS
+		SDL_UpdateTexture(vScreenTex, nullptr, vscreen->BmpBufPtr1, vscreen->Width * 4);
 	}
 	else
 	{
@@ -594,7 +597,7 @@ void render::BlitVScreen()
 	}
 
 
-	SDL_UnlockTexture(vScreenTex);
+	// SDL_UnlockTexture(vScreenTex);
 }
 
 void render::PresentVScreen()
