@@ -433,6 +433,10 @@ void pb::InputDown(GameInput input)
 		if (!MainTable->TiltLockFlag)
 			nudge::nudge_up();
 	}
+	if (input.Type == InputTypes::GameController && input.Value == SDL_CONTROLLER_BUTTON_BACK)
+	{
+		winmain::new_game();
+	}
 
 	if (cheat_mode && input.Type == InputTypes::Keyboard)
 	{
