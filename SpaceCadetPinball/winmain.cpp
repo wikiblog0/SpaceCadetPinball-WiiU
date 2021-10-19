@@ -541,6 +541,9 @@ int winmain::event_handler(const SDL_Event* event)
 		if (SDL_IsGameController(event->jdevice.which))
 		{
 			SDL_GameControllerOpen(event->jdevice.which);
+		} else
+		{
+			SDL_JoystickOpen(event->jdevice.which);
 		}
 		break;
 	case SDL_JOYDEVICEREMOVED:
@@ -549,6 +552,11 @@ int winmain::event_handler(const SDL_Event* event)
 			if (controller)
 			{
 				SDL_GameControllerClose(controller);
+			}
+			SDL_Joystick* joystick = SDL_JoystickFromInstanceID(event->jdevice.which);
+			if (joystick)
+			{
+				SDL_JoystickClose(joystick);
 			}
 		}
 		break;
@@ -578,6 +586,68 @@ int winmain::event_handler(const SDL_Event* event)
 			else
 				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
 			rightTrigger = !rightTrigger;
+		}
+		break;
+	case SDL_JOYBUTTONDOWN:
+	// this sucks
+		switch (event->jbutton.button) {
+			case 0:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_B});
+				break;
+			case 10:
+				pause();
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_START});
+				break;
+			case 11:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK});
+				break;
+			case 6:
+			case 8:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
+				break;
+			case 7:
+			case 9:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
+				break;
+			case 13:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP});
+				break;
+			case 12:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT});
+				break;
+			case 14:
+				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT});
+				break;
+		}
+		break;
+	case SDL_JOYBUTTONUP:
+		switch (event->jbutton.button) {
+			case 0:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_B});
+				break;
+			case 10:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_START});
+				break;
+			case 11:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK});
+				break;
+			case 6:
+			case 8:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
+				break;
+			case 7:
+			case 9:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
+				break;
+			case 13:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP});
+				break;
+			case 12:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT});
+				break;
+			case 14:
+				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT});
+				break;
 		}
 		break;
 	default: ;
