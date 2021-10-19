@@ -58,7 +58,7 @@ void options::init()
 		{
 			{InputTypes::Keyboard, SDLK_SPACE},
 			{InputTypes::Mouse, SDL_BUTTON_MIDDLE},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_A},
+			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_B},
 		},
 		{
 			{InputTypes::Keyboard, SDLK_x},
