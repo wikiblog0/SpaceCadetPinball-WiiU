@@ -538,7 +538,7 @@ int winmain::event_handler(const SDL_Event* event)
 		}
 		break;
 	case SDL_JOYDEVICEADDED:
-			SDL_JoystickOpen(event->jdevice.which);
+		SDL_JoystickOpen(event->jdevice.which);
 		break;
 	case SDL_JOYDEVICEREMOVED:
 		{
@@ -571,10 +571,13 @@ int winmain::event_handler(const SDL_Event* event)
 		}
 		break;
 	case SDL_JOYBUTTONDOWN:
-	// this sucks
+		// this sucks
 		switch (event->jbutton.button) {
 			case 0:
 				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_B});
+				break;
+			case 5:
+				options::toggle(Menu1::Music);
 				break;
 			case 10:
 				pause();
