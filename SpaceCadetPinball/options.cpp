@@ -84,7 +84,7 @@ void options::init()
 	GetInput("Bottom Table Bump key", Options.Key.BottomTableBump);
 
 	Options.Sounds = get_int("Sounds", true);
-	Options.Music = get_int("Music", false);
+	Options.Music = get_int("Music", true);
 	Options.FullScreen = get_int("FullScreen", false);
 	Options.Players = get_int("Players", 1);
 	Options.UniformScaling = get_int("Uniform scaling", true);
