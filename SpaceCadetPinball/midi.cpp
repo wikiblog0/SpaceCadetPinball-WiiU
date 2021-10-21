@@ -100,7 +100,7 @@ Mix_Music* midi::load_track(std::string fileName)
 	{
 		if (i == 0)
 		{
-			auto filePath = basePath + ".MID";
+			auto filePath = basePath + ".MP3";
 			auto fileHandle = fopen(filePath.c_str(), "rb");
 			if (fileHandle)
 			{
