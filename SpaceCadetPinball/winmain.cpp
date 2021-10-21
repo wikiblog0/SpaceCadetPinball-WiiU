@@ -538,21 +538,10 @@ int winmain::event_handler(const SDL_Event* event)
 		}
 		break;
 	case SDL_JOYDEVICEADDED:
-		if (SDL_IsGameController(event->jdevice.which))
-		{
-			SDL_GameControllerOpen(event->jdevice.which);
-		} else
-		{
 			SDL_JoystickOpen(event->jdevice.which);
-		}
 		break;
 	case SDL_JOYDEVICEREMOVED:
 		{
-			SDL_GameController* controller = SDL_GameControllerFromInstanceID(event->jdevice.which);
-			if (controller)
-			{
-				SDL_GameControllerClose(controller);
-			}
 			SDL_Joystick* joystick = SDL_JoystickFromInstanceID(event->jdevice.which);
 			if (joystick)
 			{
@@ -562,13 +551,6 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	case SDL_CONTROLLERBUTTONDOWN:
 		pb::InputDown({InputTypes::GameController, event->cbutton.button});
-		switch (event->cbutton.button)
-		{
-		case SDL_CONTROLLER_BUTTON_START:
-			pause();
-			break;
-		default: ;
-		}
 		break;
 	case SDL_CONTROLLERBUTTONUP:
 		pb::InputUp({InputTypes::GameController, event->cbutton.button});
