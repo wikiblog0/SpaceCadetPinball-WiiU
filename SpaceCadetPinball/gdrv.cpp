@@ -97,12 +97,13 @@ int gdrv::display_palette(ColorRgba* plt)
 
 	memcpy(current_palette, sysPaletteColors, sizeof sysPaletteColors);
 
+	for (int i = 0; i < (sizeof sysPaletteColors) / 4; i++) {
+		current_palette[i].Color = SDL_SwapLE32(current_palette[i].Color);
+	}
+
 	for (int i = 0; i < 256; i++)
 	{
 		current_palette[i].rgba.Alpha = 0;
-	}
-	for (int i = 0; i < (sizeof sysPaletteColors) / 4; i++) {
-		current_palette[i].Color = SDL_SwapLE32(current_palette[i].Color);
 	}
 
 	auto pltSrc = &plt[10];
