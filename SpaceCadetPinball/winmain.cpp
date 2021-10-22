@@ -581,10 +581,9 @@ int winmain::event_handler(const SDL_Event* event)
 				break;
 			case 10:
 				pause();
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_START});
 				break;
 			case 11:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK});
+				winmain::new_game();
 				break;
 			case 6:
 			case 8:
