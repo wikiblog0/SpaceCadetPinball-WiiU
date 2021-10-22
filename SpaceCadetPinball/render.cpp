@@ -548,52 +548,7 @@ void render::BlitVScreen()
 	}
 	else
 	{
-		// Copy offset table and fixed side bar
-		auto tableWidth = pb::MainTable->Width;
-		auto scoreWidth = vscreen->Width - pb::MainTable->Width;
-		auto tableStride = tableWidth * sizeof(ColorRgba);
-		auto scoreStride = scoreWidth * sizeof(ColorRgba);
-		auto srcScorePtr = &vscreen->BmpBufPtr1[tableWidth];
-
-		auto xSrc = 0, ySrc = 0, xDst = offset_x, yDst = offset_y, height = vscreen->Height;
-
-		// Negative dst == positive src offset
-		if (xDst < 0)
-		{
-			xSrc -= xDst;
-			xDst = 0;
-		}
-		if (yDst < 0)
-		{
-			ySrc -= yDst;
-			yDst = 0;
-		}
-
-		if (xSrc)
-		{
-			tableStride -= xSrc * sizeof(ColorRgba);
-		}
-		if (xDst)
-		{
-			tableStride -= xDst * sizeof(ColorRgba);
-			tableWidth -= xDst;
-			scoreWidth += xDst;
-		}
-		if (ySrc)
-			height -= ySrc;
-
-		auto srcBmpPtr = &vscreen->BmpBufPtr1[vscreen->Width * ySrc + xSrc];
-		auto dstPtr = &lockedPixels[vscreen->Width * yDst + xDst];
-		for (int y = height; y > 0; --y)
-		{
-			std::memcpy(dstPtr, srcBmpPtr, tableStride);
-			dstPtr += tableWidth;
-			std::memcpy(dstPtr, srcScorePtr, scoreStride);
-			dstPtr += scoreWidth;
-
-			srcBmpPtr += vscreen->Stride;
-			srcScorePtr += vscreen->Stride;
-		}
+		SDL_UpdateTexture(vScreenTex, nullptr, vscreen->BmpBufPtr1, vscreen->Width * 4);
 	}
 
 
