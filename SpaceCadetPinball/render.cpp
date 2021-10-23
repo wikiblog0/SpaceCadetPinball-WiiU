@@ -525,38 +525,23 @@ void render::SpriteViewer(bool* show)
 	ImGui::End();
 }
 
-void render::BlitVScreen()
-{
-	int pitch = 0;
-	ColorRgba* lockedPixels;
-	// SDL_LockTexture
-	// (
-	// 	vScreenTex,
-	// 	nullptr,
-	// 	reinterpret_cast<void**>(&lockedPixels),
-	// 	&pitch
-	// );
-	assertm(static_cast<unsigned>(pitch) == vscreen->Width * sizeof(ColorRgba) || 1, "Padding on vScreen texture");
-
-	if (offset_x == 0 && offset_y == 0)
-	{
-		// No offset - direct copy
-		//std::memcpy(lockedPixels, vscreen->BmpBufPtr1, vscreen->Width * vscreen->Height * sizeof(ColorRgba));
-		
-		// not great but it still renders at 60 FPS
-		SDL_UpdateTexture(vScreenTex, nullptr, vscreen->BmpBufPtr1, vscreen->Width * 4);
-	}
-	else
-	{
-		SDL_UpdateTexture(vScreenTex, nullptr, vscreen->BmpBufPtr1, vscreen->Width * 4);
-	}
-
-
-	// SDL_UnlockTexture(vScreenTex);
-}
-
 void render::PresentVScreen()
 {
-	BlitVScreen();
-	SDL_RenderCopy(winmain::Renderer, vScreenTex, nullptr, &DestinationRect);
+	if (offset_x == 0 && offset_y == 0) {
+		SDL_UpdateTexture(vScreenTex, nullptr, vscreen->BmpBufPtr1, vscreen->Width * 4);
+		SDL_RenderCopy(winmain::Renderer, vScreenTex, nullptr, &DestinationRect);
+	} else {
+		// this sucks but it's easier than messing around with the rect
+		gdrv_bitmap8 tableBmp(vscreen->Width, vscreen->Height, false);
+		gdrv_bitmap8 scoreBmp(vscreen->Width, vscreen->Height, false);
+		gdrv::copy_bitmap(&tableBmp, pb::MainTable->Width, vscreen->Height, 0, 0, vscreen, 0, 0);
+		gdrv::copy_bitmap(&scoreBmp, vscreen->Width - pb::MainTable->Width, vscreen->Height, pb::MainTable->Width, 0, vscreen, pb::MainTable->Width, 0);
+		SDL_UpdateTexture(vScreenTex, nullptr, tableBmp.BmpBufPtr1, vscreen->Width * 4);
+		SDL_Rect offsetRect = DestinationRect;
+		offsetRect.x += offset_x;
+		offsetRect.y += offset_y;
+		SDL_RenderCopy(winmain::Renderer, vScreenTex, nullptr, &offsetRect);
+		SDL_UpdateTexture(vScreenTex, nullptr, scoreBmp.BmpBufPtr1, vscreen->Width * 4);
+		SDL_RenderCopy(winmain::Renderer, vScreenTex, nullptr, &DestinationRect);
+	}
 }

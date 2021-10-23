@@ -64,5 +64,4 @@ private:
 	static void repaint(struct render_sprite_type_struct* sprite);
 	static void paint_balls();
 	static void unpaint_balls();
-	static void BlitVScreen();
 };
