@@ -151,6 +151,11 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 							((float*)entryBuffer)[i] = SDL_SwapFloatLE(((float*)entryBuffer)[i]);
 						}
 						break;
+					case FieldTypes::Palette:
+						for (int i = 0; i < fieldSize / 4; i++) {
+							((uint32_t*)entryBuffer)[i] = SDL_SwapLE32(((uint32_t*)entryBuffer)[i]);
+						}
+						break;
 				}
 			}
 

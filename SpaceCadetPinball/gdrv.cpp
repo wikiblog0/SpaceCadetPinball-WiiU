@@ -131,22 +131,7 @@ void gdrv_bitmap8::CreateTexture(const char* scaleHint, int access)
 
 void gdrv_bitmap8::BlitToTexture()
 {
-	assertm(Texture, "Updating null texture");
-	int pitch = 0;
-	ColorRgba* lockedPixels;
-	auto result = SDL_LockTexture
-	(
-		Texture,
-		nullptr,
-		reinterpret_cast<void**>(&lockedPixels),
-		&pitch
-	);
-	assertm(result == 0, "Updating non-streaming texture");
-	assertm(static_cast<unsigned>(pitch) == Width * sizeof(ColorRgba), "Padding on vScreen texture");
-
-	std::memcpy(lockedPixels, BmpBufPtr1, Width * Height * sizeof(ColorRgba));
-
-	SDL_UnlockTexture(Texture);
+	SDL_UpdateTexture(Texture, nullptr, BmpBufPtr1, Width * 4);
 }
 
 int gdrv::display_palette(ColorRgba* plt)
