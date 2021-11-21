@@ -21,32 +21,33 @@ SDL_Renderer* winmain::Renderer = nullptr;
 ImGuiIO* winmain::ImIO = nullptr;
 
 int winmain::return_value = 0;
-int winmain::bQuit = 0;
-int winmain::activated;
+bool winmain::bQuit = false;
+bool winmain::activated = false;
 int winmain::DispFrameRate = 0;
-int winmain::DispGRhistory = 0;
-int winmain::single_step = 0;
-int winmain::has_focus = 1;
+bool winmain::DispGRhistory = false;
+bool winmain::single_step = false;
+bool winmain::has_focus = true;
 int winmain::last_mouse_x;
 int winmain::last_mouse_y;
 int winmain::mouse_down;
-int winmain::no_time_loss;
+bool winmain::no_time_loss = false;
 
 bool winmain::restart = false;
 
 gdrv_bitmap8* winmain::gfr_display = nullptr;
-std::string winmain::DatFileName;
 bool winmain::ShowAboutDialog = false;
 bool winmain::ShowImGuiDemo = false;
 bool winmain::ShowSpriteViewer = false;
 bool winmain::LaunchBallEnabled = true;
 bool winmain::HighScoresEnabled = true;
 bool winmain::DemoActive = false;
-char* winmain::BasePath;
+int winmain::MainMenuHeight = 0;
 std::string winmain::FpsDetails;
 double winmain::UpdateToFrameRatio;
 winmain::DurationMs winmain::TargetFrameTime;
 optionsStruct& winmain::Options = options::Options;
+winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
+WelfordState winmain::SleepState{};
 
 bool leftTrigger = false;
 bool rightTrigger = false;
@@ -65,25 +66,14 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	// SDL init
 	SDL_SetMainReady();
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
+		SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
 		return 1;
 	}
-	BasePath = "romfs:/";
 
 	pinball::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
-	DatFileName = options::get_string("Pinball Data", pinball::get_rc_string(168, 0));
-
-	/*Check for full tilt .dat file and switch to it automatically*/
-	auto cadetFilePath = pinball::make_path_name("CADET.DAT");
-	auto cadetDat = fopen(cadetFilePath.c_str(), "r");
-	if (cadetDat)
-	{
-		fclose(cadetDat);
-		DatFileName = "CADET.DAT";
-		pb::FullTiltMode = true;
-	}
 
 	// SDL window
 	SDL_Window* window = SDL_CreateWindow
@@ -100,18 +90,26 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	SDL_Renderer* renderer = SDL_CreateRenderer
-	(
-		window,
-		-1,
-		SDL_RENDERER_ACCELERATED
-	);
-	Renderer = renderer;
+	// If HW fails, fallback to SW SDL renderer.
+	SDL_Renderer* renderer = nullptr;
+	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr ? 1 : 0;
+	for (int i = swOffset; i < 2 && !renderer; i++)
+	{
+		Renderer = renderer = SDL_CreateRenderer
+		(
+			window,
+			-1,
+			i == 0 ? SDL_RENDERER_ACCELERATED : SDL_RENDERER_SOFTWARE
+		);
+	}
 	if (!renderer)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError(), window);
 		return 1;
 	}
+	SDL_RendererInfo rendererInfo{};
+	if (!SDL_GetRendererInfo(renderer, &rendererInfo))
+		printf("Using SDL renderer: %s\n", rendererInfo.name);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
@@ -124,25 +122,32 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	ImIO = &io;
 	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
 	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 	io.IniFilename = "fs:/vol/external01/wiiu/apps/spacecadetpinball/imgui_pb.ini";
-	// PB init from message handler
+
+	// First step: just load the options, second: run updates depending on FullTiltMode
+	options::InitPrimary();
+	auto basePath = (char*)"romfs:/";
+	pb::SelectDatFile(std::array<char*, 2>
 	{
-		options::init();
-		if (!Sound::Init(Options.SoundChannels, Options.Sounds))
-			Options.Sounds = false;
+		basePath
+	});
+	options::InitSecondary();
 
-		if (!pinball::quickFlag && !midi::music_init())
-			Options.Music = false;
+	if (!Sound::Init(Options.SoundChannels, Options.Sounds))
+		Options.Sounds = false;
 
-		if (pb::init())
-		{
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data",
-			                         "The .dat file is missing", window);
-			return 1;
-		}
+	if (!pinball::quickFlag && !midi::music_init())
+		Options.Music = false;
 
-		fullscrn::init();
+	if (pb::init())
+	{
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data",
+		                         "The .dat file is missing", window);
+		return 1;
 	}
+
+	fullscrn::init();
 
 	pb::reset_table();
 	pb::firsttime_setup();
@@ -160,7 +165,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	else
 		pb::replay_level(0);
 
-	unsigned dtHistoryCounter = 300u, updateCounter = 0, frameCounter = 0;
+	unsigned updateCounter = 0, frameCounter = 0;
 
 	auto frameStart = Clock::now();
 	double UpdateToFrameCounter = 0;
@@ -184,36 +189,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			}
 		}
 
-		if (DispGRhistory)
-		{
-			if (!gfr_display)
-			{
-				auto plt = static_cast<ColorRgba*>(malloc(1024u));
-				auto pltPtr = &plt[10];
-				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
-				{
-					unsigned char blue = i2, redGreen = i2;
-					if (i2 > 255)
-					{
-						blue = 255;
-						redGreen = i1;
-					}
-
-					*pltPtr++ = ColorRgba{Rgba{redGreen, redGreen, blue, 0}};
-				}
-				gdrv::display_palette(plt);
-				free(plt);
-				gfr_display = new gdrv_bitmap8(400, 15, false);
-			}
-
-			if (!dtHistoryCounter)
-			{
-				dtHistoryCounter = 300;
-				gdrv::copy_bitmap(render::vscreen, 300, 10, 0, 30, gfr_display, 0, 0);
-				gdrv::fill_bitmap(gfr_display, 300, 10, 0, 0, 0);
-			}
-		}
-
 		if (!ProcessWindowMessages() || bQuit || !WHBProcIsRunning())
 			break;
 
@@ -224,8 +199,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				int x, y, w, h;
 				SDL_GetMouseState(&x, &y);
 				SDL_GetWindowSize(window, &w, &h);
-				float dx = (last_mouse_x - x) / static_cast<float>(w);
-				float dy = (y - last_mouse_y) / static_cast<float>(h);
+				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
+				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
 				pb::ballset(dx, dy);
 
 				SDL_WarpMouseInWindow(window, last_mouse_x, last_mouse_y);
@@ -234,24 +209,34 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				//last_mouse_x = x;
 				//last_mouse_y = y;
 			}
-			if (!single_step)
+			if (!single_step && !no_time_loss)
 			{
 				auto dt = static_cast<float>(frameDuration.count());
-				auto dtWhole = static_cast<int>(std::round(dt));
 				pb::frame(dt);
-				if (gfr_display)
+				if (DispGRhistory)
 				{
-					auto deltaTPal = dtWhole + 10;
-					auto fillChar = static_cast<uint8_t>(deltaTPal);
-					if (deltaTPal > 236)
+					auto width = 300;
+					auto height = 64, halfHeight = height / 2;
+					if (!gfr_display)
 					{
-						fillChar = 1;
+						gfr_display = new gdrv_bitmap8(width, height, false);
+						gfr_display->CreateTexture("nearest", SDL_TEXTUREACCESS_STREAMING);
 					}
-					gdrv::fill_bitmap(gfr_display, 1, 10, 300 - dtHistoryCounter, 0, fillChar);
-					--dtHistoryCounter;
+
+					gdrv::ScrollBitmapHorizontal(gfr_display, -1);
+					gdrv::fill_bitmap(gfr_display, 1, halfHeight, width - 1, 0, ColorRgba::Black()); // Background
+					// Target	
+					gdrv::fill_bitmap(gfr_display, 1, halfHeight, width - 1, halfHeight, ColorRgba::White());
+
+					auto target = static_cast<float>(TargetFrameTime.count());
+					auto scale = halfHeight / target;
+					auto diffHeight = std::min(static_cast<int>(std::round(std::abs(target - dt) * scale)), halfHeight);
+					auto yOffset = dt < target ? halfHeight : halfHeight - diffHeight;
+					gdrv::fill_bitmap(gfr_display, 1, diffHeight, width - 1, yOffset, ColorRgba::Red()); // Target diff
 				}
 				updateCounter++;
 			}
+			no_time_loss = false;
 
 			if (UpdateToFrameCounter >= UpdateToFrameRatio)
 			{
@@ -283,17 +268,20 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			TimePoint frameEnd;
 			if (targetTimeDelta > DurationMs::zero() && !Options.UncappedUpdatesPerSecond)
 			{
-				std::this_thread::sleep_for(targetTimeDelta);
+				if (Options.HybridSleep)
+					HybridSleep(targetTimeDelta);
+				else
+					std::this_thread::sleep_for(targetTimeDelta);
 				frameEnd = Clock::now();
-				sleepRemainder = DurationMs(frameEnd - updateEnd) - targetTimeDelta;
 			}
 			else
 			{
 				frameEnd = updateEnd;
-				sleepRemainder = DurationMs(0);
 			}
 
 			// Limit duration to 2 * target time
+			sleepRemainder = std::max(std::min(DurationMs(frameEnd - updateEnd) - targetTimeDelta, TargetFrameTime),
+			                          -TargetFrameTime);
 			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart), 2 * TargetFrameTime);
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
@@ -301,6 +289,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	delete gfr_display;
+	gfr_display = nullptr;
 	options::uninit();
 	midi::music_shutdown();
 	pb::uninit();
@@ -327,7 +316,7 @@ void winmain::RenderUi()
 		if (ImGui::Begin("main", nullptr,
 		                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
 		                 ImGuiWindowFlags_AlwaysAutoResize |
-		                 ImGuiWindowFlags_NoMove))
+		                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing))
 		{
 			ImGui::PushID(1);
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{});
@@ -340,7 +329,10 @@ void winmain::RenderUi()
 		}
 		ImGui::End();
 		ImGui::PopStyleVar();
-		return;
+
+		// This window can not loose nav focus for some reason, clear it manually.
+		if (ImGui::IsNavInputDown(ImGuiNavInput_Cancel))
+			ImGui::FocusWindow(nullptr);
 	}
 
 	// No demo window in release to save space
@@ -354,6 +346,8 @@ void winmain::RenderUi()
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
 	options::RenderControlDialog();
+	if (DispGRhistory)
+		RenderFrameTimeDialog();
 }
 
 int winmain::event_handler(const SDL_Event* event)
@@ -377,12 +371,14 @@ int winmain::event_handler(const SDL_Event* event)
 		default: ;
 		}
 	}
-	if (ImIO->WantCaptureKeyboard)
+	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput())
 	{
 		switch (event->type)
 		{
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
+		case SDL_CONTROLLERBUTTONDOWN:
+		case SDL_CONTROLLERBUTTONUP:
 			return 1;
 		default: ;
 		}
@@ -392,7 +388,7 @@ int winmain::event_handler(const SDL_Event* event)
 	{
 	case SDL_QUIT:
 		end_pause();
-		bQuit = 1;
+		bQuit = true;
 		fullscrn::shutdown();
 		return_value = 0;
 		return 0;
@@ -442,7 +438,26 @@ int winmain::event_handler(const SDL_Event* event)
 		switch (event->key.keysym.sym)
 		{
 		case SDLK_g:
-			DispGRhistory = 1;
+			DispGRhistory ^= true;
+			break;
+		case SDLK_o:
+			{
+				auto plt = new ColorRgba[4 * 256];
+				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
+				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
+				{
+					unsigned char blue = i2, redGreen = i2;
+					if (i2 > 255)
+					{
+						blue = 255;
+						redGreen = i1;
+					}
+
+					*pltPtr++ = ColorRgba{blue, redGreen, redGreen, 0};
+				}
+				gdrv::display_palette(plt);
+				delete[] plt;
+			}
 			break;
 		case SDLK_y:
 			SDL_SetWindowTitle(MainWindow, "Pinball");
@@ -452,9 +467,9 @@ int winmain::event_handler(const SDL_Event* event)
 			pb::frame(10);
 			break;
 		case SDLK_F10:
-			single_step = single_step == 0;
-			if (single_step == 0)
-				no_time_loss = 1;
+			single_step ^= true;
+			if (!single_step)
+				no_time_loss = true;
 			break;
 		default:
 			break;
@@ -510,21 +525,21 @@ int winmain::event_handler(const SDL_Event* event)
 		case SDL_WINDOWEVENT_FOCUS_GAINED:
 		case SDL_WINDOWEVENT_TAKE_FOCUS:
 		case SDL_WINDOWEVENT_SHOWN:
-			activated = 1;
+			activated = true;
 			Sound::Activate();
 			if (Options.Music && !single_step)
 				midi::play_pb_theme();
-			no_time_loss = 1;
-			has_focus = 1;
+			no_time_loss = true;
+			has_focus = true;
 			break;
 		case SDL_WINDOWEVENT_FOCUS_LOST:
 		case SDL_WINDOWEVENT_HIDDEN:
-			activated = 0;
+			activated = false;
 			fullscrn::activate(0);
 			Options.FullScreen = false;
 			Sound::Deactivate();
 			midi::music_stop();
-			has_focus = 0;
+			has_focus = false;
 			pb::loose_focus();
 			break;
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
@@ -712,7 +727,7 @@ void winmain::end_pause()
 	if (single_step)
 	{
 		pb::pause_continue();
-		no_time_loss = 1;
+		no_time_loss = true;
 	}
 }
 
@@ -725,7 +740,7 @@ void winmain::new_game()
 void winmain::pause()
 {
 	pb::pause_continue();
-	no_time_loss = 1;
+	no_time_loss = true;
 }
 
 void winmain::Restart()
@@ -741,4 +756,51 @@ void winmain::UpdateFrameRate()
 	auto fps = Options.FramesPerSecond, ups = Options.UpdatesPerSecond;
 	UpdateToFrameRatio = static_cast<double>(ups) / fps;
 	TargetFrameTime = DurationMs(1000.0 / ups);
+}
+
+void winmain::RenderFrameTimeDialog()
+{
+	if (!gfr_display)
+		return;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2{300, 70});
+	if (ImGui::Begin("Frame Times", &DispGRhistory, ImGuiWindowFlags_NoScrollbar))
+	{
+		auto target = static_cast<float>(TargetFrameTime.count());
+		auto scale = 1 / (gfr_display->Height / 2 / target);
+
+		auto spin = Options.HybridSleep ? static_cast<float>(SpinThreshold.count()) : 0;
+		ImGui::Text("Target frame time:%03.04fms, 1px:%03.04fms, SpinThreshold:%03.04fms",
+		            target, scale, spin);
+		gfr_display->BlitToTexture();
+		auto region = ImGui::GetContentRegionAvail();
+		ImGui::Image(gfr_display->Texture, region);
+	}
+	ImGui::End();
+	ImGui::PopStyleVar();
+}
+
+void winmain::HybridSleep(DurationMs sleepTarget)
+{
+	static constexpr double StdDevFactor = 0.5;
+
+	// This nice concept is from https://blat-blatnik.github.io/computerBear/making-accurate-sleep-function/
+	// Sacrifices some CPU time for smaller frame time jitter
+	while (sleepTarget > SpinThreshold)
+	{
+		auto start = Clock::now();
+		std::this_thread::sleep_for(DurationMs(1));
+		auto end = Clock::now();
+
+		auto actualDuration = DurationMs(end - start);
+		sleepTarget -= actualDuration;
+
+		// Update expected sleep duration using Welford's online algorithm
+		// With bad timer, this will run away to 100% spin
+		SleepState.Advance(actualDuration.count());
+		SpinThreshold = DurationMs(SleepState.mean + SleepState.GetStdDev() * StdDevFactor);
+	}
+
+	// spin lock
+	for (auto start = Clock::now(); DurationMs(Clock::now() - start) < sleepTarget;);
 }
