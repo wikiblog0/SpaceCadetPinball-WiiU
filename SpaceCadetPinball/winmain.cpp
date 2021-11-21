@@ -124,10 +124,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	ImIO = &io;
 	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
 	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
-	auto prefPath = "scp/";
-	auto iniPath = std::string(prefPath) + "imgui_pb.ini";
-	io.IniFilename = iniPath.c_str();
-	//SDL_free(prefPath);
+	io.IniFilename = "fs:/vol/external01/wiiu/apps/spacecadetpinball/imgui_pb.ini";
 	// PB init from message handler
 	{
 		options::init();
