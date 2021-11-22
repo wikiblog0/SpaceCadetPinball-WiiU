@@ -90,7 +90,7 @@ void options::InitPrimary()
 	Options.Players = get_int("Players", 1);
 	Options.UniformScaling = get_int("Uniform scaling", true);
 	ImGui::GetIO().FontGlobalScale = get_float("UI Scale", 1.0f);
-	Options.Resolution = get_int("Screen Resolution", -1);
+	Options.Resolution = get_int("Screen Resolution", 0);
 	Options.LinearFiltering = get_int("Linear Filtering", true);
 	Options.FramesPerSecond = std::min(MaxFps, std::max(MinUps, get_int("Frames Per Second", DefFps)));
 	Options.UpdatesPerSecond = std::min(MaxUps, std::max(MinUps, get_int("Updates Per Second", DefUps)));
