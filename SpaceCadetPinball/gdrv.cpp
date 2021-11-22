@@ -154,10 +154,6 @@ int gdrv::display_palette(ColorRgba* plt)
 	std::memset(current_palette, 0, sizeof current_palette);
 	std::memcpy(current_palette, sysPaletteColors, sizeof sysPaletteColors);	
 
-	for (int i = 0; i < (sizeof sysPaletteColors) / 4; i++) {
-		current_palette[i].Color = SDL_SwapLE32(current_palette[i].Color);
-	}
-
 	for (int index = 10; plt && index < 246; index++)
 	{
 		auto srcClr = plt[index];
