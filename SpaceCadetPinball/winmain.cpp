@@ -561,27 +561,6 @@ int winmain::event_handler(const SDL_Event* event)
 			}
 		}
 		break;
-	case SDL_CONTROLLERBUTTONDOWN:
-		pb::InputDown({InputTypes::GameController, event->cbutton.button});
-		break;
-	case SDL_CONTROLLERBUTTONUP:
-		pb::InputUp({InputTypes::GameController, event->cbutton.button});
-		break;
-	case SDL_CONTROLLERAXISMOTION:
-		if (event->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT) {
-			if (!leftTrigger)
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
-			else
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
-			leftTrigger = !leftTrigger;
-		} else if (event->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
-			if (!rightTrigger)
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
-			else
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
-			rightTrigger = !rightTrigger;
-		}
-		break;
 	case SDL_JOYBUTTONDOWN:
 		// this sucks
 		switch (event->jbutton.button) {
