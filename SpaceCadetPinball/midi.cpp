@@ -96,35 +96,13 @@ Mix_Music* midi::load_track(std::string fileName)
 	// FT has music in two formats, depending on version: MIDI in 16bit, MIDS in 32bit.
 	// 3DPB music is MIDI only.
 	auto basePath = pinball::make_path_name(fileName);
-	for (int i = 0; i <= 1 && !audio; i++)
+	auto filePath = basePath + ".MP3";
+	auto fileHandle = fopenu(filePath.c_str(), "rb");
+	if (fileHandle)
 	{
-		if (i == 0)
-		{
-			auto filePath = basePath + ".MP3";
-			auto fileHandle = fopenu(filePath.c_str(), "rb");
-			if (fileHandle)
-			{
-				fclose(fileHandle);
-				auto rw = SDL_RWFromFile(filePath.c_str(), "rb");
-				audio = Mix_LoadMUS_RW(rw, 1);
-			}
-		}
-		else
-		{
-			auto midi = MdsToMidi(basePath + ".MDS");
-			if (midi)
-			{
-				// Dump converted MIDI file
-				/*auto filePath = basePath + ".midi";
-				FILE* fileHandle = fopenu(filePath.c_str(), "wb");
-				fwrite(midi->data(), 1, midi->size(), fileHandle);
-				fclose(fileHandle);*/
-
-				auto rw = SDL_RWFromMem(midi->data(), static_cast<int>(midi->size()));
-				audio = Mix_LoadMUS_RW(rw, 1); // This call seems to leak memory no matter what.
-				delete midi;
-			}
-		}
+		fclose(fileHandle);
+		auto rw = SDL_RWFromFile(filePath.c_str(), "rb");
+		audio = Mix_LoadMUS_RW(rw, 1);
 	}
 
 	if (!audio)
