@@ -125,25 +125,44 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 	io.IniFilename = "fs:/vol/external01/wiiu/apps/spacecadetpinball/imgui_pb.ini";
 
-	// First step: just load the options, second: run updates depending on FullTiltMode
+	// First step: just load the options
 	options::InitPrimary();
+
+	// Data search order: WD, executable path, user pref path, platform specific paths.
 	auto basePath = (char*)"romfs:/";
-	pb::SelectDatFile(std::array<char*, 2>
+	std::vector<const char*> searchPaths
 	{
-		basePath
-	});
+		{
+			"",
+			basePath,
+			prefPath
+		}
+	};
+	searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
+	pb::SelectDatFile(searchPaths);
+
+	// Second step: run updates depending on FullTiltMode
 	options::InitSecondary();
 
-	if (!Sound::Init(Options.SoundChannels, Options.Sounds))
+	if (!Sound::Init(Options.SoundChannels, Options.Sounds, Options.SoundVolume))
 		Options.Sounds = false;
 
-	if (!pinball::quickFlag && !midi::music_init())
+	if (!pinball::quickFlag && !midi::music_init(Options.MusicVolume))
 		Options.Music = false;
 
 	if (pb::init())
 	{
+		std::string message = "The .dat file is missing.\n"
+			"Make sure that the game data is present in any of the following locations:\n";
+		for (auto path : searchPaths)
+		{
+			if (path)
+			{
+				message = message + (path[0] ? path : "working directory") + "\n";
+			}
+		}
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data",
-		                         "The .dat file is missing", window);
+		                         message.c_str(), window);
 		return 1;
 	}
 
@@ -163,7 +182,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	if (strstr(lpCmdLine, "-demo"))
 		pb::toggle_demo();
 	else
-		pb::replay_level(0);
+		pb::replay_level(false);
 
 	unsigned updateCounter = 0, frameCounter = 0;
 
@@ -203,11 +222,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
 				pb::ballset(dx, dy);
 
-				SDL_WarpMouseInWindow(window, last_mouse_x, last_mouse_y);
+				// Original creates continuous mouse movement with mouse capture.
+				// Alternative solution: mouse warp at window edges.
+				int xMod = 0, yMod = 0;
+				if (x == 0 || x >= w - 1)
+					xMod = w - 2;
+				if (y == 0 || y >= h - 1)
+					yMod = h - 2;
+				if (xMod != 0 || yMod != 0)
+				{
+					// Mouse warp does not work over remote desktop or in some VMs
+					x = abs(x - xMod); y = abs(y - yMod);
+					SDL_WarpMouseInWindow(window, x, y);
+				}
 
-				// Mouse warp does not work over remote desktop or in some VMs
-				//last_mouse_x = x;
-				//last_mouse_y = y;
+				last_mouse_x = x;
+				last_mouse_y = y;
 			}
 			if (!single_step && !no_time_loss)
 			{
@@ -245,6 +275,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				RenderUi();
 
 				SDL_RenderClear(renderer);
+				// Alternative clear hack, clear might fail on some systems
+				// Todo: remove original clear, if save for all platforms
+				SDL_RenderFillRect(renderer, nullptr);
 				render::PresentVScreen();
 
 				ImGui::Render();
@@ -280,8 +313,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			}
 
 			// Limit duration to 2 * target time
-			sleepRemainder = std::max(std::min(DurationMs(frameEnd - updateEnd) - targetTimeDelta, TargetFrameTime),
-			                          -TargetFrameTime);
+			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime, TargetFrameTime);
 			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart), 2 * TargetFrameTime);
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
@@ -421,8 +453,7 @@ int winmain::event_handler(const SDL_Event* event)
 			options::toggle(Menu1::Music);
 			break;
 		case SDLK_F8:
-			if (!single_step)
-				pause();
+			pause(false);
 			options::ShowControlDialog();
 			break;
 		case SDLK_F9:
@@ -528,7 +559,7 @@ int winmain::event_handler(const SDL_Event* event)
 			activated = true;
 			Sound::Activate();
 			if (Options.Music && !single_step)
-				midi::play_pb_theme();
+				midi::music_play();
 			no_time_loss = true;
 			has_focus = true;
 			break;
@@ -635,7 +666,7 @@ int winmain::ProcessWindowMessages()
 {
 	static auto idleWait = 0;
 	SDL_Event event;
-	if (has_focus && !single_step)
+	if (has_focus)
 	{
 		idleWait = static_cast<int>(TargetFrameTime.count());
 		while (SDL_PollEvent(&event))
@@ -683,7 +714,7 @@ void winmain::a_dialog()
 		ImGui::Separator();
 
 		ImGui::TextUnformatted("Decompiled -> Ported to SDL");
-		ImGui::TextUnformatted("Version 2.0");
+		ImGui::TextUnformatted("Version 2.0.1");
 		if (ImGui::SmallButton("Project home: https://github.com/k4zmu2a/SpaceCadetPinball"))
 		{
 #if SDL_VERSION_ATLEAST(2, 0, 14)
@@ -713,13 +744,16 @@ void winmain::end_pause()
 void winmain::new_game()
 {
 	end_pause();
-	pb::replay_level(0);
+	pb::replay_level(false);
 }
 
-void winmain::pause()
+void winmain::pause(bool toggle)
 {
-	pb::pause_continue();
-	no_time_loss = true;
+	if (toggle || !single_step)
+	{
+		pb::pause_continue();
+		no_time_loss = true;
+	}
 }
 
 void winmain::Restart()

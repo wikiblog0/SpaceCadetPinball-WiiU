@@ -1,14 +1,36 @@
 #pragma once
 
 class TBall;
+class TFlipperEdge;
 
-struct vector_type
+struct vector2
 {
 	float X;
 	float Y;
+
+	bool operator==(const vector2& vec)
+	{
+		return X == vec.X && Y == vec.Y;
+	}
+	bool operator!=(const vector2& vec)
+	{
+		return X != vec.X || Y != vec.Y;
+	}
+};
+
+struct vector3 :vector2
+{	
+	vector3() = default;
+	vector3(float x, float y) : vector3{ x, y, 0 } {}
+	vector3(float x, float y, float z) : vector2{ x, y }, Z(z) {}
 	float Z;
 };
 
+struct vector2i
+{
+	int X;
+	int Y;
+};
 
 struct rectangle_type
 {
@@ -20,81 +42,85 @@ struct rectangle_type
 
 struct circle_type
 {
-	vector_type Center;
+	vector2 Center;
 	float RadiusSq;
 };
 
 struct ray_type
 {
-	vector_type Origin;
-	vector_type Direction;
+	vector2 Origin;
+	vector2 Direction;
 	float MaxDistance;
 	float MinDistance;
 	float TimeNow;
 	float TimeDelta;
-	int FieldFlag;
+	int CollisionMask;
 };
 
 struct line_type
 {
-	vector_type PerpendicularL;
-	vector_type Direction;
-	float PreComp1;
-	float OriginX;
-	float OriginY;
-	vector_type RayIntersect;
-};
-
-struct vector_type2
-{
-	float X;
-	float Y;
+	vector2 PerpendicularC;
+	vector2 Direction;
+	vector2 Origin;
+	vector2 End;
+	float MinCoord;
+	float MaxCoord;
+	vector2 RayIntersect;
 };
 
 struct wall_point_type
 {
-	float X0;
-	float Y0;
-	float X1;
-	float Y1;
+	vector2 Pt0;
+	vector2 Pt1;
 };
 
 struct ramp_plane_type
 {
-	vector_type BallCollisionOffset;
-	vector_type2 V1;
-	vector_type2 V2;
-	vector_type2 V3;
+	vector3 BallCollisionOffset;
+	vector2 V1;
+	vector2 V2;
+	vector2 V3;
 	float GravityAngle1;
 	float GravityAngle2;
-	vector_type2 FieldForce;
+	vector2 FieldForce;
+};
+
+enum class FlipperIntersect
+{
+	none = -1,
+	lineA = 0,
+	lineB = 1,
+	circlebase = 2,
+	circleT1 = 3
 };
 
 
 class maths
 {
 public:
-	static void enclosing_box(rectangle_type* rect1, rectangle_type* rect2, rectangle_type* dstRect);
-	static int rectangle_clip(rectangle_type* rect1, rectangle_type* rect2, rectangle_type* dstRect);
-	static int overlapping_box(rectangle_type* rect1, rectangle_type* rect2, rectangle_type* dstRect);
-	static float ray_intersect_circle(ray_type* ray, circle_type* circle);
-	static float normalize_2d(vector_type* vec);
-	static void line_init(line_type* line, float x0, float y0, float x1, float y1);
-	static float ray_intersect_line(ray_type* ray, line_type* line);
-	static void cross(vector_type* vec1, vector_type* vec2, vector_type* dstVec);
-	static float magnitude(vector_type* vec);
-	static void vector_add(vector_type* vec1Dst, vector_type* vec2);
-	static float basic_collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float elasticity,
+	static void enclosing_box(const rectangle_type& rect1, const rectangle_type& rect2, rectangle_type& dstRect);
+	static bool rectangle_clip(const rectangle_type& rect1, const rectangle_type& rect2, rectangle_type* dstRect);
+	static float ray_intersect_circle(const ray_type& ray, const circle_type& circle);
+	static float normalize_2d(vector2& vec);
+	static void line_init(line_type& line, float x0, float y0, float x1, float y1);
+	static float ray_intersect_line(const ray_type& ray, line_type& line);
+	static void cross(const vector3& vec1, const vector3& vec2, vector3& dstVec);
+	static float cross(const vector2& vec1, const vector2& vec2);
+	static float magnitude(const vector3& vec);
+	static void vector_add(vector2& vec1Dst, const vector2& vec2);
+	static vector2 vector_sub(const vector2& vec1, const vector2& vec2);
+	static vector3 vector_sub(const vector3& vec1, const vector3& vec2);
+	static vector2 vector_mul(const vector2& vec1, float val);
+	static float basic_collision(TBall* ball, vector2* nextPosition, vector2* direction, float elasticity,
 	                             float smoothness,
 	                             float threshold, float boost);
-	static float Distance_Squared(vector_type& vec1, vector_type& vec2);
-	static float DotProduct(vector_type* vec1, vector_type* vec2);
-	static void vswap(vector_type* vec1, vector_type* vec2);
-	static float Distance(vector_type* vec1, vector_type* vec2);
-	static void SinCos(float angle, float* sinOut, float* cosOut);
-	static void RotatePt(vector_type* point, float sin, float cos, vector_type* origin);
-	static float distance_to_flipper(ray_type* ray1, ray_type* ray2);
-	static void RotateVector(vector_type* vec, float angle);
-	static void find_closest_edge(ramp_plane_type* plane, int planeCount, wall_point_type* wall, vector_type** lineEnd,
-	                              vector_type** lineStart);
+	static float Distance_Squared(const vector2& vec1, const vector2& vec2);
+	static float DotProduct(const vector2& vec1, const vector2& vec2);
+	static float Distance(const vector2& vec1, const vector2& vec2);
+	static void SinCos(float angle, float& sinOut, float& cosOut);
+	static void RotatePt(vector2& point, float sin, float cos, const vector2& origin);
+	static float distance_to_flipper(TFlipperEdge* flipper, const ray_type& ray1, ray_type& ray2);
+	static void RotateVector(vector2& vec, float angle);
+	static void find_closest_edge(ramp_plane_type* plane, int planeCount, wall_point_type* wall, vector2& lineEnd,
+	                              vector2& lineStart);
 };

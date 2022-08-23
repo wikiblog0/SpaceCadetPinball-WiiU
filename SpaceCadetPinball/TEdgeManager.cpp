@@ -8,17 +8,19 @@
 #include "TEdgeSegment.h"
 #include "TTableLayer.h"
 
-TEdgeManager::TEdgeManager(float posX, float posY, float width, float height)
+TEdgeManager::TEdgeManager(float xMin, float yMin, float width, float height)
 {
-	X = posX;
-	Y = posY;
+	Width = width;
+	Height = height;
+	MinX = xMin;
+	MinY = yMin;
+	MaxX = MinX + width;
+	MaxY = MinY + height;
 	MaxBoxX = 10;
 	MaxBoxY = 15;
-	AdvanceX = width / 10.0f;
-	AdvanceY = height / 15.0f;
-	AdvanceXInv = 1.0f / AdvanceX;
-	AdvanceYInv = 1.0f / AdvanceY;
-	BoxArray = new TEdgeBox[150];
+	AdvanceX = width / static_cast<float>(MaxBoxX);
+	AdvanceY = height / static_cast<float>(MaxBoxY);
+	BoxArray = new TEdgeBox[MaxBoxX * MaxBoxY];
 }
 
 TEdgeManager::~TEdgeManager()
@@ -28,12 +30,12 @@ TEdgeManager::~TEdgeManager()
 
 int TEdgeManager::box_x(float x)
 {
-	return std::max(0, std::min(static_cast<int>(floor((x - X) * AdvanceXInv)), MaxBoxX - 1));
+	return std::max(0, std::min(static_cast<int>(floor((x - MinX) / AdvanceX)), MaxBoxX - 1));
 }
 
 int TEdgeManager::box_y(float y)
 {
-	return std::max(0, std::min(static_cast<int>(floor((y - Y) * AdvanceYInv)), MaxBoxY - 1));
+	return std::max(0, std::min(static_cast<int>(floor((y - MinY) / AdvanceY)), MaxBoxY - 1));
 }
 
 int TEdgeManager::increment_box_x(int x)
@@ -48,25 +50,33 @@ int TEdgeManager::increment_box_y(int y)
 
 void TEdgeManager::add_edge_to_box(int x, int y, TEdgeSegment* edge)
 {
-	BoxArray[x + y * MaxBoxX].EdgeList.push_back(edge);
+	assertm((unsigned)x < (unsigned)MaxBoxX && (unsigned)y < (unsigned)MaxBoxY, "Box coordinates out of range");
+
+	auto& list = BoxArray[x + y * MaxBoxX].EdgeList;
+	assertm(std::find(list.begin(), list.end(), edge) == list.end(), "Duplicate inserted into box");
+	list.push_back(edge);
 }
 
 void TEdgeManager::add_field_to_box(int x, int y, field_effect_type* field)
 {
-	BoxArray[x + y * MaxBoxX].FieldList.push_back(field);
+	assertm((unsigned)x < (unsigned)MaxBoxX && (unsigned)y < (unsigned)MaxBoxY, "Box coordinates out of range");
+
+	auto& list = BoxArray[x + y * MaxBoxX].FieldList;
+	assertm(std::find(list.begin(), list.end(), field) == list.end(), "Duplicate inserted into box");
+	list.push_back(field);
 }
 
 int TEdgeManager::TestGridBox(int x, int y, float* distPtr, TEdgeSegment** edgeDst, ray_type* ray, TBall* ball,
                               int edgeIndex)
 {
-	if (x >= 0 && x < 10 && y >= 0 && y < 15)
+	if (x >= 0 && x < MaxBoxX && y >= 0 && y < MaxBoxY)
 	{
 		TEdgeBox* edgeBox = &BoxArray[x + y * MaxBoxX];
 		TEdgeSegment** edgePtr = &EdgeArray[edgeIndex];
 		for (auto it = edgeBox->EdgeList.rbegin(); it != edgeBox->EdgeList.rend(); ++it)
 		{
 			auto edge = *it;
-			if (!edge->ProcessedFlag && *edge->ActiveFlag && (edge->CollisionGroup & ray->FieldFlag))
+			if (!edge->ProcessedFlag && *edge->ActiveFlag && (edge->CollisionGroup & ray->CollisionMask))
 			{
 				if (!ball->already_hit(edge))
 				{
@@ -87,20 +97,20 @@ int TEdgeManager::TestGridBox(int x, int y, float* distPtr, TEdgeSegment** edgeD
 	return edgeIndex;
 }
 
-void TEdgeManager::FieldEffects(TBall* ball, vector_type* dstVec)
+void TEdgeManager::FieldEffects(TBall* ball, vector2* dstVec)
 {
-	vector_type vec{};
+	vector2 vec{};
 	TEdgeBox* edgeBox = &BoxArray[box_x(ball->Position.X) + box_y(ball->Position.Y) *
 		MaxBoxX];
 
 	for (auto it = edgeBox->FieldList.rbegin(); it != edgeBox->FieldList.rend(); ++it)
 	{
 		auto field = *it;
-		if (*field->Flag2Ptr && ball->FieldFlag & field->Mask)
+		if (*field->ActiveFlag && ball->CollisionMask & field->CollisionGroup)
 		{
 			if (field->CollisionComp->FieldEffect(ball, &vec))
 			{
-				maths::vector_add(dstVec, &vec);
+				maths::vector_add(*dstVec, vec);
 			}
 		}
 	}
@@ -111,157 +121,83 @@ float TEdgeManager::FindCollisionDistance(ray_type* ray, TBall* ball, TEdgeSegme
 	auto distance = 1000000000.0f;
 	auto edgeIndex = 0;
 
-	auto rayX = ray->Origin.X;
-	auto rayY = ray->Origin.Y;
-	auto rayBoxX = box_x(rayX);
-	auto rayBoxY = box_y(rayY);
+	auto x0 = ray->Origin.X;
+	auto y0 = ray->Origin.Y;
+	auto x1 = ray->Direction.X * ray->MaxDistance + ray->Origin.X;
+	auto y1 = ray->Direction.Y * ray->MaxDistance + ray->Origin.Y;
 
-	auto rayEndX = ray->Direction.X * ray->MaxDistance + ray->Origin.X;
-	auto rayEndY = ray->Direction.Y * ray->MaxDistance + ray->Origin.Y;
-	auto rayEndBoxX = box_x(rayEndX);
-	auto rayEndBoxY = box_y(rayEndY);
+	auto xBox0 = box_x(x0);
+	auto yBox0 = box_y(y0);
+	auto xBox1 = box_x(x1);
+	auto yBox1 = box_y(y1);
 
-	auto rayDirX = rayX >= rayEndX ? -1 : 1;
-	auto rayDirY = rayY >= rayEndY ? -1 : 1;
+	auto dirX = x0 >= x1 ? -1 : 1;
+	auto dirY = y0 >= y1 ? -1 : 1;
 
-	if (rayBoxY == rayEndBoxY)
+	if (yBox0 == yBox1)
 	{
-		if (rayDirX == 1)
+		if (dirX == 1)
 		{
-			for (auto indexX = rayBoxX; indexX <= rayEndBoxX; indexX++)
+			for (auto indexX = xBox0; indexX <= xBox1; indexX++)
 			{
-				edgeIndex = TestGridBox(indexX, rayBoxY, &distance, edge, ray, ball, edgeIndex);
+				edgeIndex = TestGridBox(indexX, yBox0, &distance, edge, ray, ball, edgeIndex);
 			}
 		}
 		else
 		{
-			for (auto indexX = rayBoxX; indexX >= rayEndBoxX; indexX--)
+			for (auto indexX = xBox0; indexX >= xBox1; indexX--)
 			{
-				edgeIndex = TestGridBox(indexX, rayBoxY, &distance, edge, ray, ball, edgeIndex);
+				edgeIndex = TestGridBox(indexX, yBox0, &distance, edge, ray, ball, edgeIndex);
 			}
 		}
 	}
-	else if (rayBoxX == rayEndBoxX)
+	else if (xBox0 == xBox1)
 	{
-		if (rayDirY == 1)
+		if (dirY == 1)
 		{
-			for (auto indexY = rayBoxY; indexY <= rayEndBoxY; indexY++)
+			for (auto indexY = yBox0; indexY <= yBox1; indexY++)
 			{
-				edgeIndex = TestGridBox(rayBoxX, indexY, &distance, edge, ray, ball, edgeIndex);
+				edgeIndex = TestGridBox(xBox0, indexY, &distance, edge, ray, ball, edgeIndex);
 			}
 		}
 		else
 		{
-			for (auto indexY = rayBoxY; indexY >= rayEndBoxY; indexY--)
+			for (auto indexY = yBox0; indexY >= yBox1; indexY--)
 			{
-				edgeIndex = TestGridBox(rayBoxX, indexY, &distance, edge, ray, ball, edgeIndex);
+				edgeIndex = TestGridBox(xBox0, indexY, &distance, edge, ray, ball, edgeIndex);
 			}
 		}
 	}
 	else
 	{
-		auto rayDyDX = (rayY - rayEndY) / (rayX - rayEndX);
-		auto indexX = rayBoxX;
-		auto indexY = rayBoxY;
-		auto bresIndexX = rayBoxX + 1;
-		auto bresIndexY = rayBoxY + 1;
-		auto bresXAdd = rayY - rayDyDX * rayX;
-		edgeIndex = TestGridBox(rayBoxX, rayBoxY, &distance, edge, ray, ball, 0);
-		if (rayDirX == 1)
+		edgeIndex = TestGridBox(xBox0, yBox0, &distance, edge, ray, ball, 0);
+
+		// Bresenham line formula: y = dYdX * (x - x0) + y0; dYdX = (y0 - y1) / (x0 - x1)
+		auto dyDx = (y0 - y1) / (x0 - x1);
+		// Precompute constant part: dYdX * (-x0) + y0
+		auto precomp = -x0 * dyDx + y0;
+		// X and Y indexes are offset by one when going forwards, not sure why
+		auto xBias = dirX == 1 ? 1 : 0, yBias = dirY == 1 ? 1 : 0;
+
+		for (auto indexX = xBox0, indexY = yBox0; indexX != xBox1 || indexY != yBox1;)
 		{
-			if (rayDirY == 1)
+			// Calculate y from indexY and from line formula
+			auto yDiscrete = (indexY + yBias) * AdvanceY + MinY;
+			auto ylinear = ((indexX + xBias) * AdvanceX + MinX) * dyDx + precomp;
+			if (dirY == 1 ? ylinear >= yDiscrete : ylinear <= yDiscrete)
 			{
-				do
-				{
-					auto yCoord = bresIndexY * AdvanceY + Y;
-					auto xCoord = (bresIndexX * AdvanceX + X) * rayDyDX + bresXAdd;
-					if (xCoord >= yCoord)
-					{
-						if (xCoord == yCoord)
-						{
-							++indexX;
-							++bresIndexX;
-						}
-						++indexY;
-						++bresIndexY;
-					}
-					else
-					{
-						++indexX;
-						++bresIndexX;
-					}
-					edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
-				}
-				while (indexX < rayEndBoxX || indexY < rayEndBoxY);
+				// Advance indexY when discrete value is ahead/behind
+				// Advance indexX when discrete value matches linear value
+				indexY += dirY;
+				if (ylinear == yDiscrete)
+					indexX += dirX;
 			}
 			else
 			{
-				do
-				{
-					auto yCoord = indexY * AdvanceY + Y;
-					auto xCoord = (bresIndexX * AdvanceX + X) * rayDyDX + bresXAdd;
-					if (xCoord <= yCoord)
-					{
-						if (xCoord == yCoord)
-						{
-							++indexX;
-							++bresIndexX;
-						}
-						--indexY;
-					}
-					else
-					{
-						++indexX;
-						++bresIndexX;
-					}
-					edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
-				}
-				while (indexX < rayEndBoxX || indexY > rayEndBoxY);
+				// Advance indexX otherwise
+				indexX += dirX;
 			}
-		}
-		else
-		{
-			if (rayDirY == 1)
-			{
-				do
-				{
-					auto yCoord = bresIndexY * AdvanceY + Y;
-					auto xCoord = (indexX * AdvanceX + X) * rayDyDX + bresXAdd;
-					if (xCoord >= yCoord)
-					{
-						if (xCoord == yCoord)
-							--indexX;
-						++indexY;
-						++bresIndexY;
-					}
-					else
-					{
-						--indexX;
-					}
-					edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
-				}
-				while (indexX > rayEndBoxX || indexY < rayEndBoxY);
-			}
-			else
-			{
-				do
-				{
-					auto yCoord = indexY * AdvanceY + Y;
-					auto xCoord = (indexX * AdvanceX + X) * rayDyDX + bresXAdd;
-					if (xCoord <= yCoord)
-					{
-						if (xCoord == yCoord)
-							--indexX;
-						--indexY;
-					}
-					else
-					{
-						--indexX;
-					}
-					edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
-				}
-				while (indexX > rayEndBoxX || indexY > rayEndBoxY);
-			}
+			edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
 		}
 	}
 
@@ -272,4 +208,24 @@ float TEdgeManager::FindCollisionDistance(ray_type* ray, TBall* ball, TEdgeSegme
 	}
 
 	return distance;
+}
+
+vector2 TEdgeManager::NormalizeBox(vector2 pt) const
+{
+	// Standard PB Box ranges: X [-8, 8]; Y [-14, 15]; Top right corner: (-8, -14)
+	// Bring them to: X [0, 16]; Y [0, 29]; Top right corner: (0, 0)
+	auto x = Clamp(pt.X, MinX, MaxX) + abs(MinX);
+	auto y = Clamp(pt.Y, MinY, MaxY) + abs(MinY);
+
+	// Normalize and invert to: X [0, 1]; Y [0, 1]; Top right corner: (1, 1)
+	x /= Width; y /= Height;
+	return vector2{ 1 - x, 1 - y };
+}
+
+vector2 TEdgeManager::DeNormalizeBox(vector2 pt) const
+{
+	// Undo normalization by applying steps in reverse
+	auto x = (1 - pt.X) * Width - abs(MinX);
+	auto y = (1 - pt.Y) * Height - abs(MinY);
+	return vector2{ x, y };
 }

@@ -37,12 +37,12 @@ int TRollover::Message(int code, float value)
 	return 0;
 }
 
-void TRollover::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+void TRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                           TEdgeSegment* edge)
 {
 	ball->Position.X = nextPosition->X;
 	ball->Position.Y = nextPosition->Y;
-	ball->RayMaxDistance -= coef;
+	ball->RayMaxDistance -= distance;
 	ball->not_again(edge);
 	gdrv_bitmap8* bmp = nullptr;
 	if (!PinballTable->TiltLockFlag)
@@ -54,7 +54,7 @@ void TRollover::Collision(TBall* ball, vector_type* nextPosition, vector_type* d
 		}
 		else
 		{
-			loader::play_sound(SoftHitSoundId);
+			loader::play_sound(SoftHitSoundId, ball, "TRollover");
 			control::handler(63, this);
 		}
 		RolloverFlag = RolloverFlag == 0;
@@ -66,18 +66,6 @@ void TRollover::Collision(TBall* ball, vector_type* nextPosition, vector_type* d
 		}
 	}
 }
-
-void TRollover::put_scoring(int index, int score)
-{
-	if (index < 2)
-		Scores[index] = score;
-}
-
-int TRollover::get_scoring(int index)
-{
-	return index < 2 ? Scores[index] : 0;
-}
-
 
 void TRollover::build_walls(int groupIndex)
 {

@@ -34,12 +34,12 @@ int TLightRollover::Message(int code, float value)
 	return 0;
 }
 
-void TLightRollover::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+void TLightRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                                TEdgeSegment* edge)
 {
 	ball->Position.X = nextPosition->X;
 	ball->Position.Y = nextPosition->Y;
-	ball->RayMaxDistance -= coef;
+	ball->RayMaxDistance -= distance;
 	ball->not_again(edge);
 	if (!PinballTable->TiltLockFlag)
 	{
@@ -53,7 +53,7 @@ void TLightRollover::Collision(TBall* ball, vector_type* nextPosition, vector_ty
 		}
 		else
 		{
-			loader::play_sound(SoftHitSoundId);
+			loader::play_sound(SoftHitSoundId, this, "TLightRollover");
 			control::handler(63, this);
 			RolloverFlag = RolloverFlag == 0;
 			if (ListBitmap)

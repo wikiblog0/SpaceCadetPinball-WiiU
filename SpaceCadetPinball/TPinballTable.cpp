@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "midi.h"
 #include "pb.h"
 #include "pinball.h"
 #include "render.h"
@@ -291,7 +292,7 @@ void TPinballTable::tilt(float time)
 		pinball::InfoTextBox->Clear();
 		pinball::MissTextBox->Clear();
 		pinball::InfoTextBox->Display(pinball::get_rc_string(35, 0), -1.0);
-		loader::play_sound(SoundIndex3);
+		loader::play_sound(SoundIndex3, nullptr, "TPinballTable1");
 		TiltTimeoutTimer = timer::set(30.0, this, tilt_timeout);
 
 		for (auto component : ComponentList)
@@ -381,7 +382,7 @@ int TPinballTable::Message(int code, float value)
 		{
 			timer::kill(EndGameTimeoutTimer);
 			EndGame_timeout(0, this);
-			pb::mode_change(1);
+			pb::mode_change(GameModes::InGame);
 		}
 		if (LightShowTimer)
 		{
@@ -445,9 +446,13 @@ int TPinballTable::Message(int code, float value)
 			pinball::InfoTextBox->Clear();
 			pinball::MissTextBox->Clear();
 			LightGroup->Message(28, 0.2f);
-			auto time = loader::play_sound(SoundIndex1);
+			auto time = loader::play_sound(SoundIndex1, nullptr, "TPinballTable2");
+			if (time < 0)
+				time = 5.0f;
 			LightShowTimer = timer::set(time, this, LightShow_timeout);
 		}
+
+		midi::play_track(MidiTracks::Track1, true);
 		break;
 	case 1018:
 		if (ReplayTimer)
@@ -540,7 +545,7 @@ int TPinballTable::Message(int code, float value)
 		}
 		break;
 	case 1022:
-		loader::play_sound(SoundIndex2);
+		loader::play_sound(SoundIndex2, nullptr, "TPinballTable3");
 		pinball::MissTextBox->Clear();
 		pinball::InfoTextBox->Display(pinball::get_rc_string(34, 0), -1.0);
 		EndGameTimeoutTimer = timer::set(3.0, this, EndGame_timeout);
@@ -617,7 +622,7 @@ void TPinballTable::replay_timer_callback(int timerId, void* caller)
 void TPinballTable::tilt_timeout(int timerId, void* caller)
 {
 	auto table = static_cast<TPinballTable*>(caller);
-	vector_type vec{};
+	vector2 vec{};
 
 	table->TiltTimeoutTimer = 0;
 	if (table->TiltLockFlag)

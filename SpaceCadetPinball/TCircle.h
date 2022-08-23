@@ -8,9 +8,9 @@ class TCircle :
 public:
 	circle_type Circle{};
 
-	TCircle(TCollisionComponent* collComp, char* activeFlag, unsigned int collisionGroup, vector_type* center,
+	TCircle(TCollisionComponent* collComp, char* activeFlag, unsigned int collisionGroup, vector2* center,
 	        float radius);
 	float FindCollisionDistance(ray_type* ray) override;
-	void EdgeCollision(TBall* ball, float coef) override;
+	void EdgeCollision(TBall* ball, float distance) override;
 	void place_in_grid() override;
 };

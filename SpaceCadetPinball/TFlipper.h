@@ -11,16 +11,10 @@ public:
 	~TFlipper() override;
 	int Message(int code, float value) override;
 	void port_draw() override;
-	void Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 		TEdgeSegment* edge) override;
-
-	static void TimerExpired(int timerId, void* caller);
+	void UpdateSprite(float timeNow);
 	
 	int BmpIndex;
 	TFlipperEdge* FlipperEdge;
-	int Timer;
-	float ExtendAnimationFrameTime{};
-	float RetractAnimationFrameTime{};
-	float TimerTime{};
-	float InputTime;
 };

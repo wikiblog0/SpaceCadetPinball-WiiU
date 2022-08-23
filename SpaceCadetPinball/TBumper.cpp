@@ -36,9 +36,9 @@ int TBumper::Message(int code, float value)
 			if (nextBmp != BmpIndex)
 			{
 				if (nextBmp >= BmpIndex)
-					loader::play_sound(SoundIndex4);
+					loader::play_sound(SoundIndex4, this, "TBumper1");
 				if (nextBmp < BmpIndex)
-					loader::play_sound(SoundIndex3);
+					loader::play_sound(SoundIndex3, this, "TBumper2");
 				BmpIndex = nextBmp;
 				Fire();
 				control::handler(11, this);
@@ -100,25 +100,13 @@ int TBumper::Message(int code, float value)
 	return 0;
 }
 
-void TBumper::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef, TEdgeSegment* edge)
+void TBumper::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (DefaultCollision(ball, nextPosition, direction))
 	{
 		Fire();
 		control::handler(63, this);
 	}
-}
-
-void TBumper::put_scoring(int index, int score)
-{
-	if (index < 4)
-		Scores[index] = score;
-}
-
-
-int TBumper::get_scoring(int index)
-{
-	return index < 4 ? Scores[index] : 0;
 }
 
 void TBumper::TimerExpired(int timerId, void* caller)

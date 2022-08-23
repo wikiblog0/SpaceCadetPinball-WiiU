@@ -93,12 +93,12 @@ int TDemo::Message(int code, float value)
 	return 0;
 }
 
-void TDemo::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef, TEdgeSegment* edge)
+void TDemo::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);
 	ball->Position.X = nextPosition->X;
 	ball->Position.Y = nextPosition->Y;
-	ball->RayMaxDistance -= coef;
+	ball->RayMaxDistance -= distance;
 
 	switch (reinterpret_cast<size_t>(edge->WallValue))
 	{
@@ -197,7 +197,7 @@ void TDemo::FlipLeft(int timerId, void* caller)
 void TDemo::NewGameRestartTimer(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
-	pb::replay_level(1);
+	pb::replay_level(true);
 	demo->PinballTable->Message(1014, static_cast<float>(demo->PinballTable->PlayerCount));
 	demo->RestartGameTimer = 0;
 }

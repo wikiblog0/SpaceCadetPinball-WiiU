@@ -9,6 +9,7 @@
 #include "proj.h"
 #include "render.h"
 #include "TPinballTable.h"
+#include "TTableLayer.h"
 
 TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 {
@@ -21,22 +22,23 @@ TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 	CollisionComp = nullptr;
 	EdgeCollisionCount = 0;
 	TimeDelta = 0.0;
-	FieldFlag = 1;
+	CollisionMask = 1;
 	CollisionFlag = 0;
 	Speed = 0.0;
-	Acceleration.Y = 0.0;
-	Acceleration.X = 0.0;
-	InvAcceleration.Y = 1000000000.0;
-	InvAcceleration.X = 1000000000.0;
+	Direction.Y = 0.0;
+	Direction.X = 0.0;
 	Position.X = 0.0;
 	Position.Y = 0.0;
 
 	ListBitmap = new std::vector<gdrv_bitmap8*>();
 
 	/*Full tilt: ball is ballN, where N[0,2] resolution*/
-	if (pb::FullTiltMode)
-		ballGroupName[4] = '0' + fullscrn::GetResolution();
 	auto groupIndex = loader::query_handle(ballGroupName);
+	if (groupIndex < 0)
+	{
+		ballGroupName[4] = '0' + fullscrn::GetResolution();
+		groupIndex = loader::query_handle(ballGroupName);
+	}
 
 	Offset = *loader::query_float_attribute(groupIndex, 0, 500);
 
@@ -46,8 +48,8 @@ TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 		loader::query_visual(groupIndex, index, &visual);
 		if (ListBitmap)
 			ListBitmap->push_back(visual.Bitmap);
-		auto visVec = reinterpret_cast<vector_type*>(loader::query_float_attribute(groupIndex, index, 501));
-		auto zDepth = proj::z_distance(visVec);
+		auto visVec = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, index, 501));
+		auto zDepth = proj::z_distance(*visVec);
 		VisualZArray[index] = zDepth;
 	}
 	RenderSprite = render::create_sprite(VisualTypes::Ball, nullptr, nullptr, 0, 0, nullptr);
@@ -57,8 +59,6 @@ TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 
 void TBall::Repaint()
 {
-	int pos2D[2];
-
 	if (CollisionFlag)
 	{
 		Position.Z =
@@ -67,8 +67,8 @@ void TBall::Repaint()
 			Offset + CollisionOffset.Z;
 	}
 
-	proj::xform_to_2d(&Position, pos2D);
-	auto zDepth = proj::z_distance(&Position);
+	auto pos2D = proj::xform_to_2d(Position);
+	auto zDepth = proj::z_distance(Position);
 
 	auto zArrPtr = VisualZArray;
 	auto index = 0u;
@@ -82,8 +82,8 @@ void TBall::Repaint()
 		RenderSprite,
 		bmp,
 		zDepth,
-		pos2D[0] - bmp->Width / 2,
-		pos2D[1] - bmp->Height / 2);
+		pos2D.X - bmp->Width / 2,
+		pos2D.Y - bmp->Height / 2);
 }
 
 void TBall::not_again(TEdgeSegment* edge)
@@ -116,23 +116,28 @@ int TBall::Message(int code, float value)
 		Position.Y = 0.0;
 		ActiveFlag = 0;
 		CollisionFlag = 0;
-		FieldFlag = 1;
-		Acceleration.Y = 0.0;
+		CollisionMask = 1;
+		Direction.Y = 0.0;
 		Position.Z = Offset;
-		Acceleration.X = 0.0;
+		Direction.X = 0.0;
 		Speed = 0.0;
 		RayMaxDistance = 0.0;
 	}
 	return 0;
 }
 
-void TBall::throw_ball(TBall* ball, vector_type* acceleration, float angleMult, float speedMult1, float speedMult2)
+void TBall::throw_ball(TBall* ball, vector3* direction, float angleMult, float speedMult1, float speedMult2)
 {
 	ball->CollisionComp = nullptr;
-	ball->Acceleration = *acceleration;
+	ball->Direction = *direction;
 	float rnd = RandFloat();
 	float angle = (1.0f - (rnd + rnd)) * angleMult;
-	maths::RotateVector(&ball->Acceleration, angle);
+	maths::RotateVector(ball->Direction, angle);
 	rnd = RandFloat();
 	ball->Speed = (1.0f - (rnd + rnd)) * (speedMult1 * speedMult2) + speedMult1;
+}
+
+vector2 TBall::get_coordinates()
+{
+	return TTableLayer::edge_manager->NormalizeBox(Position);
 }

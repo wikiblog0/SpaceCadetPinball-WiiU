@@ -13,23 +13,23 @@ public :
 	void not_again(TEdgeSegment* edge);
 	bool already_hit(TEdgeSegment* edge);
 	int Message(int code, float value) override;
+	vector2 get_coordinates() override;
 
-	static void throw_ball(TBall* ball, struct vector_type* acceleration, float angleMult, float speedMult1,
+	static void throw_ball(TBall* ball, vector3* direction, float angleMult, float speedMult1,
 	                       float speedMult2);
 
-	vector_type Position{};
-	vector_type Acceleration{};
+	vector3 Position{};
+	vector3 Direction{};
 	float Speed;
 	float RayMaxDistance;
 	float TimeDelta;
 	float TimeNow;
-	vector_type InvAcceleration{};
-	vector_type RampFieldForce{};	
+	vector2 RampFieldForce{};
 	TCollisionComponent* CollisionComp;
-	int FieldFlag;
+	int CollisionMask;
 	TEdgeSegment* Collisions[5]{};
 	int EdgeCollisionCount;
-	vector_type CollisionOffset{};
+	vector3 CollisionOffset{};
 	int CollisionFlag;
 	float Offset;
 	float VisualZArray[50]{};

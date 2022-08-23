@@ -174,6 +174,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/imstb_textedit.h
         SpaceCadetPinball/imstb_rectpack.h
         SpaceCadetPinball/imstb_truetype.h
+        SpaceCadetPinball/DebugOverlay.cpp
+        SpaceCadetPinball/DebugOverlay.h
         )
 
 # On Windows, include resource file with the icon
@@ -222,4 +224,15 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_DLL_PATH}/SDL2.dll" $<TARGET_FILE_DIR:SpaceCadetPinball>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_MIXER_DLL_PATH}/SDL2_mixer.dll" $<TARGET_FILE_DIR:SpaceCadetPinball>
         )
+endif()
+
+if(UNIX AND NOT APPLE)
+	include(GNUInstallDirs)
+	install(TARGETS "${PROJECT_NAME}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.desktop" DESTINATION "share/applications")
+	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.metainfo.xml" DESTINATION "share/metainfo")
+	foreach(S 16 32 48 128 192)
+		install(FILES "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/Icon_${S}x${S}.png" DESTINATION
+			"share/icons/hicolor/${S}x${S}/apps" RENAME "${PROJECT_NAME}.png")
+	endforeach(S)
 endif()

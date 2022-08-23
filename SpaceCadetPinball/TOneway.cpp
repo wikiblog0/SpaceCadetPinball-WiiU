@@ -11,7 +11,7 @@
 TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
-	vector_type linePt1{}, linePt2{};
+	vector2 linePt1{}, linePt2{};
 
 	loader::query_visual(groupIndex, 0, &visual);
 	if (visual.FloatArrCount == 2)
@@ -21,7 +21,7 @@ TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(tab
 		linePt1.X = visual.FloatArr[2];
 		linePt1.Y = visual.FloatArr[3];
 
-		auto line = new TLine(this, &ActiveFlag, visual.CollisionGroup, &linePt2, &linePt1);
+		auto line = new TLine(this, &ActiveFlag, visual.CollisionGroup, linePt2, linePt1);
 		if (line)
 		{
 			line->Offset(table->CollisionCompOffset);
@@ -29,7 +29,7 @@ TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(tab
 			EdgeList.push_back(line);
 		}
 
-		line = new TLine(this, &ActiveFlag, visual.CollisionGroup, &linePt1, &linePt2);
+		line = new TLine(this, &ActiveFlag, visual.CollisionGroup, linePt1, linePt2);
 		Line = line;
 		if (line)
 		{
@@ -40,18 +40,18 @@ TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(tab
 	}
 }
 
-void TOneway::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef, TEdgeSegment* edge)
+void TOneway::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (edge == Line)
 	{
 		ball->not_again(edge);
 		ball->Position.X = nextPosition->X;
 		ball->Position.Y = nextPosition->Y;
-		ball->RayMaxDistance -= coef;
+		ball->RayMaxDistance -= distance;
 		if (!PinballTable->TiltLockFlag)
 		{
 			if (HardHitSoundId)
-				loader::play_sound(HardHitSoundId);
+				loader::play_sound(HardHitSoundId, ball, "TOneway1");
 			control::handler(63, this);
 		}
 	}
@@ -69,17 +69,6 @@ void TOneway::Collision(TBall* ball, vector_type* nextPosition, vector_type* dir
 		Boost) > 0.2f)
 	{
 		if (SoftHitSoundId)
-			loader::play_sound(SoftHitSoundId);
+			loader::play_sound(SoftHitSoundId, ball, "TOneway2");
 	}
-}
-
-void TOneway::put_scoring(int index, int score)
-{
-	if (index < 6)
-		Scores[index] = score;
-}
-
-int TOneway::get_scoring(int index)
-{
-	return index < 6 ? Scores[index] : 0;
 }

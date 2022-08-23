@@ -24,7 +24,7 @@ int TWall::Message(int code, float value)
 	return 0;
 }
 
-void TWall::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef, TEdgeSegment* edge)
+void TWall::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (DefaultCollision(ball, nextPosition, direction))
 	{
@@ -35,17 +35,6 @@ void TWall::Collision(TBall* ball, vector_type* nextPosition, vector_type* direc
 		}
 		control::handler(63, this);
 	}
-}
-
-void TWall::put_scoring(int index, int score)
-{
-	if (index < 1)
-		Scores[index] = score;
-}
-
-int TWall::get_scoring(int index)
-{
-	return index < 1 ? Scores[index] : 0;
 }
 
 void TWall::TimerExpired(int timerId, void* caller)

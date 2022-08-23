@@ -51,18 +51,7 @@ int TPopupTarget::Message(int code, float value)
 	return 0;
 }
 
-void TPopupTarget::put_scoring(int index, int score)
-{
-	if (index < 3)
-		Scores[index] = score;
-}
-
-int TPopupTarget::get_scoring(int index)
-{
-	return index < 3 ? Scores[index] : 0;
-}
-
-void TPopupTarget::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+void TPopupTarget::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                              TEdgeSegment* edge)
 {
 	if (this->PinballTable->TiltLockFlag)
@@ -79,7 +68,7 @@ void TPopupTarget::Collision(TBall* ball, vector_type* nextPosition, vector_type
 		this->Boost) > this->Threshold)
 	{
 		if (this->HardHitSoundId)
-			loader::play_sound(this->HardHitSoundId);
+			loader::play_sound(this->HardHitSoundId, this, "TPopupTarget1");
 		this->Message(49, 0.0);
 		control::handler(63, this);
 	}
@@ -94,6 +83,6 @@ void TPopupTarget::TimerExpired(int timerId, void* caller)
 	if (timerId)
 	{
 		if (target->SoftHitSoundId)
-			loader::play_sound(target->SoftHitSoundId);
+			loader::play_sound(target->SoftHitSoundId, target, "TPopupTarget2");
 	}
 }

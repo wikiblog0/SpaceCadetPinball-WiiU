@@ -2,6 +2,7 @@
 #include "gdrv.h"
 #include "maths.h"
 #include "zdrv.h"
+#include "TPinballComponent.h"
 
 
 class DatFile;
@@ -25,7 +26,7 @@ struct visualKickerStruct
 	float Threshold;
 	float Boost;
 	float ThrowBallMult;
-	vector_type ThrowBallAcceleration;
+	vector3 ThrowBallDirection;
 	float ThrowBallAngleMult;
 	int HardHitSoundId;
 };
@@ -99,7 +100,7 @@ public:
 	static float* query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
 	static float query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal);
 	static int16_t* query_iattribute(int groupIndex, int firstValue, int* arraySize);
-	static float play_sound(int soundIndex);
+	static float play_sound(int soundIndex, TPinballComponent *soundSource, const char* info);
 	static DatFile* loader_table;
 private:
 	static errorMsg loader_errors[];

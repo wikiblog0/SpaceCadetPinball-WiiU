@@ -13,7 +13,7 @@
 TFlagSpinner::TFlagSpinner(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
-	vector_type end{}, start{};
+	vector2 end{}, start{};
 
 	Timer = 0;
 	loader::query_visual(groupIndex, 0, &visual);
@@ -21,14 +21,14 @@ TFlagSpinner::TFlagSpinner(TPinballTable* table, int groupIndex) : TCollisionCom
 	end.Y = visual.FloatArr[1];
 	start.X = visual.FloatArr[2];
 	start.Y = visual.FloatArr[3];
-	auto line = new TLine(this, &ActiveFlag, visual.CollisionGroup, &start, &end);
+	auto line = new TLine(this, &ActiveFlag, visual.CollisionGroup, start, end);
 	if (line)
 	{
 		line->place_in_grid();
 		EdgeList.push_back(line);
 	}
 
-	line = new TLine(this, &ActiveFlag, visual.CollisionGroup, &end, &start);
+	line = new TLine(this, &ActiveFlag, visual.CollisionGroup, end, start);
 	PrevCollider = line;
 	if (line)
 	{
@@ -72,12 +72,12 @@ int TFlagSpinner::Message(int code, float value)
 	return 0;
 }
 
-void TFlagSpinner::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+void TFlagSpinner::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                              TEdgeSegment* edge)
 {
 	ball->Position.X = nextPosition->X;
 	ball->Position.Y = nextPosition->Y;
-	ball->RayMaxDistance = ball->RayMaxDistance - coef;
+	ball->RayMaxDistance = ball->RayMaxDistance - distance;
 	ball->not_again(edge);
 
 	SpinDirection = 2 * (PrevCollider != edge) - 1;
@@ -90,17 +90,6 @@ void TFlagSpinner::Collision(TBall* ball, vector_type* nextPosition, vector_type
 	if (Speed > MaxSpeed)
 		Speed = MaxSpeed;
 	NextFrame();
-}
-
-void TFlagSpinner::put_scoring(int index, int score)
-{
-	if (index < 2)
-		Scores[index] = score;
-}
-
-int TFlagSpinner::get_scoring(int index)
-{
-	return index < 2 ? Scores[index] : 0;
 }
 
 void TFlagSpinner::NextFrame()
@@ -117,7 +106,7 @@ void TFlagSpinner::NextFrame()
 	{
 		control::handler(63, this);
 		if (SoftHitSoundId)
-			loader::play_sound(SoftHitSoundId);
+			loader::play_sound(SoftHitSoundId, this, "TFlagSpinner");
 		if (!BmpIndex)
 			control::handler(62, this);
 	}

@@ -29,7 +29,7 @@
 #include <string>
 #include <thread>
 #include <map>
-#include <array>
+//#include <array>
 
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
@@ -38,8 +38,9 @@
 #include <whb/log.h>
 
 // MIX_INIT_FLUIDSYNTH was renamed to MIX_INIT_MID in SDL_mixer v2.0.2
+// Older versions of SDL_mixer did not have SDL_MIXER_VERSION_ATLEAST
 constexpr int MIX_INIT_MID_Proxy =
-#if SDL_MIXER_PATCHLEVEL >= 2
+#if SDL_VERSIONNUM(SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL) >= SDL_VERSIONNUM(2, 0, 2)
 	MIX_INIT_MID;
 #else
 	MIX_INIT_FLUIDSYNTH;
@@ -84,10 +85,16 @@ inline float RandFloat()
 	return static_cast<float>(std::rand() / static_cast<double>(RAND_MAX));
 }
 
-template <typename T> constexpr
-int Sign(T val)
+template <typename T>
+constexpr int Sign(T val)
 {
 	return (T(0) < val) - (val < T(0));
+}
+
+template <typename T>
+const T& Clamp(const T& n, const T& lower, const T& upper)
+{
+	return std::max(lower, std::min(n, upper));
 }
 
 // UTF-8 path adapter for fopen on Windows, implemented in SpaceCadetPinball.cpp
@@ -99,5 +106,18 @@ inline FILE* fopenu(const char* path, const char* opt)
 	return fopen(path, opt);
 }
 #endif
+
+// Platform specific data paths not found in SDL
+constexpr const char* PlatformDataPaths[2] = 
+{
+	#ifdef _WIN32
+	nullptr
+	#else
+	"/usr/local/share/SpaceCadetPinball/",
+	"/usr/share/SpaceCadetPinball/"
+	#endif
+};
+
+constexpr float Pi = 3.14159265358979323846f;
 
 #endif //PCH_H

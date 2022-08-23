@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "loader.h"
 #include "GroupData.h"
+#include "TPinballComponent.h"
 #include "pb.h"
 #include "pinball.h"
 #include "Sound.h"
@@ -93,8 +94,7 @@ void loader::loadfrom(DatFile* datFile)
 		{
 			if (sound_count < 65)
 			{
-				sound_list[sound_count].WavePtr = nullptr;
-				sound_list[sound_count].GroupIndex = groupIndex;
+				sound_list[sound_count] = {nullptr, groupIndex, 0, 0};
 				sound_count++;
 			}
 		}
@@ -107,8 +107,7 @@ void loader::unload()
 	for (int index = 1; index < sound_count; ++index)
 	{
 		Sound::FreeSound(sound_list[index].WavePtr);
-		sound_list[index].Loaded = 0;
-		sound_list[index].WavePtr = nullptr;
+		sound_list[index] = {};
 	}
 
 	sound_count = 1;
@@ -157,12 +156,15 @@ int loader::get_sound_id(int groupIndex)
 					fileName.insert(0, "SOUND");
 				}
 
+				float duration = -1;
 				auto filePath = pinball::make_path_name(fileName);
 				auto file = fopenu(filePath.c_str(), "rb");
 				if (file)
 				{
 					fread(&wavHeader, 1, sizeof wavHeader, file);
 					fclose(file);
+					auto sampleCount = wavHeader.data_size / (wavHeader.channels * (wavHeader.bits_per_sample / 8.0));
+					duration = static_cast<float>(sampleCount / wavHeader.sample_rate);
 				}
 				
 				// only swapping what seems to be necessary here - don't want to break anything
@@ -171,8 +173,7 @@ int loader::get_sound_id(int groupIndex)
 				wavHeader.channels = SDL_SwapLE16(wavHeader.channels);
 				wavHeader.bits_per_sample = SDL_SwapLE16(wavHeader.bits_per_sample);
 
-				auto sampleCount = wavHeader.data_size / (wavHeader.channels * (wavHeader.bits_per_sample / 8.0));
-				sound_list[soundIndex].Duration = static_cast<float>(sampleCount / wavHeader.sample_rate);
+				sound_list[soundIndex].Duration = duration;
 				sound_list[soundIndex].WavePtr = Sound::LoadWaveFile(filePath);
 			}
 		}
@@ -332,12 +333,11 @@ int loader::material(int groupIndex, visualStruct* visual)
 	return 0;
 }
 
-
-float loader::play_sound(int soundIndex)
+float loader::play_sound(int soundIndex, TPinballComponent *soundSource, const char *info)
 {
 	if (soundIndex <= 0)
 		return 0.0;
-	Sound::PlaySound(sound_list[soundIndex].WavePtr, pb::time_ticks);
+	Sound::PlaySound(sound_list[soundIndex].WavePtr, pb::time_ticks, soundSource, info);
 	return sound_list[soundIndex].Duration;
 }
 
@@ -396,7 +396,7 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 			kicker->ThrowBallMult = *floatArr;
 			break;
 		case 404:
-			kicker->ThrowBallAcceleration = *reinterpret_cast<vector_type*>(floatArr);
+			kicker->ThrowBallDirection = *reinterpret_cast<vector3*>(floatArr);
 			floatArr += 3;
 			index += 4;
 			break;

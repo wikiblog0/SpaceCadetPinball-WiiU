@@ -22,9 +22,11 @@ class proj
 {
 public:
 	static void init(float* mat4x3, float d, float centerX, float centerY);
-	static void matrix_vector_multiply(mat4_row_major* mat, vector_type* vec, vector_type* dstVec);
-	static float z_distance(vector_type* vec);
-	static void xform_to_2d(vector_type* vec, int* dst);
+	static vector3 matrix_vector_multiply(const mat4_row_major& mat, const vector3& vec);
+	static float z_distance(const vector3& vec);
+	static vector2i xform_to_2d(const vector3& vec);
+	static vector2i xform_to_2d(const vector2& vec);
+	static vector3 ReverseXForm(const vector2i& vec);
 	static void recenter(float centerX, float centerY);
 private:
 	static mat4_row_major matrix;

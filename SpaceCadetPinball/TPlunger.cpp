@@ -33,12 +33,12 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 	table->PlungerPositionY = floatArr[1];
 }
 
-void TPlunger::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef, TEdgeSegment* edge)
+void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (PinballTable->TiltLockFlag)
 		Message(1017, 0.0);
-	coef = RandFloat() * Boost * 0.1f + Boost; // it is intended that the passed in coef is never used!
-	maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, Threshold, coef);
+	auto boost = RandFloat() * Boost * 0.1f + Boost;
+	maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, Threshold, boost);
 }
 
 int TPlunger::Message(int code, float value)
@@ -50,7 +50,7 @@ int TPlunger::Message(int code, float value)
 		{
 			Boost = 0.0;
 			Threshold = 1000000000.0;
-			loader::play_sound(HardHitSoundId);
+			loader::play_sound(HardHitSoundId, this, "TPlunger1");
 			PullbackTimer(0, this);
 		}
 		return 0;
@@ -70,7 +70,7 @@ int TPlunger::Message(int code, float value)
 		if (BallFeedTimer_)
 			timer::kill(BallFeedTimer_);
 		BallFeedTimer_ = timer::set(0.95999998f, this, BallFeedTimer);
-		loader::play_sound(SoundIndexP1);
+		loader::play_sound(SoundIndexP1, this, "TPlunger2");
 		control::handler(code, this);
 		return 0;
 	case 1017:
@@ -95,7 +95,7 @@ int TPlunger::Message(int code, float value)
 				timer::kill(PullbackTimer_);
 			PullbackTimer_ = 0;
 			if (code == 1005)
-				loader::play_sound(SoundIndexP2);
+				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			auto bmp = ListBitmap->at(0);
 			auto zMap = ListZMap->at(0);
 			render::sprite_set(

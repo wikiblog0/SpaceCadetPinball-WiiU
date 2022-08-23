@@ -7,10 +7,8 @@ class TFlagSpinner :
 public:
 	TFlagSpinner(TPinballTable* table, int groupIndex);
 	int Message(int code, float value) override;
-	void Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 		TEdgeSegment* edge) override;
-	void put_scoring(int index, int score) override;
-	int get_scoring(int index) override;
 	void NextFrame();
 
 	static void SpinTimer(int timerId, void* caller);
@@ -23,6 +21,5 @@ public:
 	int BmpIndex{};
 	int Timer;
 	TEdgeSegment* PrevCollider;
-	int Scores[2]{};
 };
 

@@ -33,7 +33,7 @@ int TKickback::Message(int code, float value)
 	return 0;
 }
 
-void TKickback::Collision(TBall* ball, vector_type* nextPosition, vector_type* direction, float coef,
+void TKickback::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                           TEdgeSegment* edge)
 {
 	if (PinballTable->TiltLockFlag)
@@ -62,7 +62,7 @@ void TKickback::TimerExpired(int timerId, void* caller)
 	{
 		kick->Threshold = 0.0;
 		kick->Timer = timer::set(kick->TimerTime2, kick, TimerExpired);
-		loader::play_sound(kick->HardHitSoundId);
+		loader::play_sound(kick->HardHitSoundId, kick, "TKickback");
 		if (kick->ListBitmap)
 		{
 			auto bmp = kick->ListBitmap->at(1);

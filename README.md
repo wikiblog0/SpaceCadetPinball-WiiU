@@ -4,7 +4,7 @@
 
 ## Summary
 
-Reverse engineering of `3D Pinball for Windows – Space Cadet`, a game bundled with Windows.
+Reverse engineering of `3D Pinball for Windows - Space Cadet`, a game bundled with Windows.
 
 ## How to play
 
@@ -23,6 +23,10 @@ Supports data files from Windows and Full Tilt versions of the game.
 | Nintendo Wii       | MaikelChan      | https://github.com/MaikelChan/SpaceCadetPinball                                                            |
 | Nintendo 3DS       | MaikelChan      | https://github.com/MaikelChan/SpaceCadetPinball/tree/3ds                                                   |
 | Nintendo Wii U     | IntriguingTiles | https://github.com/IntriguingTiles/SpaceCadetPinball-WiiU                                                  |
+| MorphOS            | BeWorld         | https://www.morphos-storage.net/?id=1688897                                                                |
+| AmigaOS 4          | rjd324          | http://aminet.net/package/game/actio/spacecadetpinball-aos4                                                |
+| Android (WIP)      | fexed           | https://github.com/fexed/Pinball-on-Android                                                                |
+| Web                | stech11845      | https://github.com/stech11845/SpaceCadetPinball-web
 
 Platforms covered by this project: desktop Windows, Linux and macOS.
 

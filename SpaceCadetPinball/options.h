@@ -8,6 +8,7 @@ enum class Menu1:int
 	Exit = 105,
 	Sounds = 201,
 	Music = 202,
+	SoundStereo = 203,
 	Help_Topics = 301,
 	Launch_Ball = 401,
 	Pause_Resume_Game = 402,
@@ -78,6 +79,17 @@ struct optionsStruct
 	bool HybridSleep;
 	bool Prefer3DPBGameData;
 	bool IntegerScaling;
+	int SoundVolume;
+	int MusicVolume;
+	bool SoundStereo;
+	bool DebugOverlay;
+	bool DebugOverlayGrid;
+	bool DebugOverlayAllEdges;
+	bool DebugOverlayBallPosition;
+	bool DebugOverlayBallEdges;
+	bool DebugOverlayCollisionMask;
+	bool DebugOverlaySprites;
+	bool DebugOverlaySounds;
 };
 
 struct ControlRef
@@ -95,6 +107,7 @@ public:
 	                     DefUps = 120, DefFps = 60;
 	// Original uses 8 sound channels
 	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
+	static constexpr int MaxVolume = MIX_MAX_VOLUME, MinVolume = 0, DefVolume = MaxVolume;
 	static optionsStruct Options;
 
 	static void InitPrimary();
