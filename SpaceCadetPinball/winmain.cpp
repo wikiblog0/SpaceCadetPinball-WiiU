@@ -135,7 +135,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		{
 			"",
 			basePath,
-			prefPath
 		}
 	};
 	searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
