@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 project(SpaceCadetPinball)
-include("${DEVKITPRO}/wut/share/wut.cmake" REQUIRED)
 include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)

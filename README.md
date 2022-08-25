@@ -55,10 +55,10 @@ Platforms covered by this project: desktop Windows, Linux and macOS.
 
 ### For Wii U
 
-Install devkitPro, then install `wiiu-dev`, `wiiu-sdl2`, and `wiiu-sdl2_mixer`.\
+Install devkitPro, then install the `wiiu-dev`, `wiiu-sdl2`, `wiiu-sdl2_mixer`, and `wiiu-cmake` packages.\
 Compile and install [libromfs-wiiu](https://github.com/yawut/libromfs-wiiu).\
-Run `cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/wut/share/wut.toolchain.cmake ..`\
-Drop the pinball game data in `res` and compile.\
+Run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake ..`\
+Drop the pinball game data in `res` and run `make`.\
 To get music to play, convert `PINBALL.MID` to MP3.
 
 ## Plans
