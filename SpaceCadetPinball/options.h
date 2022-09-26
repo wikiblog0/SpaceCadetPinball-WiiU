@@ -36,13 +36,15 @@ enum class InputTypes: unsigned
 	None = 0,
 	Keyboard = 1,
 	Mouse = 2,
-	GameController = 3,
+	Gamepad = 3,
+	Classic = 4,
+	Wiimote = 5,
 };
 
 struct GameInput
 {
 	InputTypes Type;
-	int Value;
+	unsigned int Value;
 
 	bool operator==(const GameInput& other) const
 	{
@@ -58,6 +60,10 @@ struct ControlsStruct
 	GameInput LeftTableBump[3];
 	GameInput RightTableBump[3];
 	GameInput BottomTableBump[3];
+	GameInput Pause[3];
+	GameInput NewGame[3];
+	GameInput ShowHighScores[3];
+	GameInput Menu[3];
 };
 
 struct optionsStruct

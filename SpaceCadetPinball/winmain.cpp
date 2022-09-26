@@ -16,6 +16,11 @@
 #include <whb/log_cafe.h>
 #include <whb/log_udp.h>
 #include <whb/log.h>
+#include <sys/stat.h>
+#include <vpad/input.h>
+#include <padscore/kpad.h>
+#include <sysapp/switch.h>
+#include <coreinit/debug.h>
 
 SDL_Window* winmain::MainWindow = nullptr;
 SDL_Renderer* winmain::Renderer = nullptr;
@@ -58,7 +63,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	WHBProcInit();
 	WHBLogCafeInit();
 	WHBLogUdpInit();
-	WHBLogPrintf("passed init");
+	KPADInit();
+	WPADEnableURCC(true);
+	WPADEnableWiiRemote(true);
 	romfsInit();
 	restart = false;
 	bQuit = false;
@@ -68,7 +75,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	// SDL init
 	SDL_SetMainReady();
 	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-		SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
+		SDL_INIT_EVENTS) < 0)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
 		return 1;
@@ -81,7 +88,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	(
 		pinball::get_rc_string(38, 0),
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		1280, 720,
+		1920, 1080,
 		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 	);
 	MainWindow = window;
@@ -117,12 +124,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	// ImGui init
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiSDL::Initialize(renderer, 0, 0);
 	ImGui::StyleColorsDark();
 	ImGuiIO& io = ImGui::GetIO();
 	ImIO = &io;
-	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
-	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
+	ImGui_ImplWiiU_Init();
+	ImGui_ImplSDLRenderer_Init(renderer);
+	// Initialize backend stuff
+	ImGui_ImplSDLRenderer_NewFrame();
+	io.DisplaySize.x = 1920;
+	io.DisplaySize.y = 1080;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 	io.IniFilename = "fs:/vol/external01/wiiu/apps/spacecadetpinball/imgui_pb.ini";
 
@@ -161,8 +171,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				message = message + (path[0] ? path : "working directory") + "\n";
 			}
 		}
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data",
-		                         message.c_str(), window);
+		char buffer[2048];
+		sprintf(buffer, "Could not load game data: %s", message.c_str());
+		// TODO: replace this with OSScreen or something
+		OSFatal(buffer);
+		while (true) {}
 		return 1;
 	}
 
@@ -201,7 +214,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				auto elapsedSec = DurationMs(curTime - prevTime).count() * 0.001;
 				snprintf(buf, sizeof buf, "Updates/sec = %02.02f Frames/sec = %02.02f ",
 				         updateCounter / elapsedSec, frameCounter / elapsedSec);
-				SDL_SetWindowTitle(window, buf);
+				WHBLogPrintf("%s", buf);
 				FpsDetails = buf;
 				frameCounter = updateCounter = 0;
 				prevTime = curTime;
@@ -213,31 +226,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		if (has_focus)
 		{
-			if (mouse_down)
+			if (pb::cheat_mode && ImIO->MouseDown[ImGuiMouseButton_Left])
 			{
-				int x, y, w, h;
-				SDL_GetMouseState(&x, &y);
-				SDL_GetWindowSize(window, &w, &h);
-				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
-				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
-				pb::ballset(dx, dy);
-
-				// Original creates continuous mouse movement with mouse capture.
-				// Alternative solution: mouse warp at window edges.
-				int xMod = 0, yMod = 0;
-				if (x == 0 || x >= w - 1)
-					xMod = w - 2;
-				if (y == 0 || y >= h - 1)
-					yMod = h - 2;
-				if (xMod != 0 || yMod != 0)
-				{
-					// Mouse warp does not work over remote desktop or in some VMs
-					x = abs(x - xMod); y = abs(y - yMod);
-					SDL_WarpMouseInWindow(window, x, y);
-				}
-
-				last_mouse_x = x;
-				last_mouse_y = y;
+				pb::ballset((-ImIO->MouseDelta.x) / (1920 * 2), ImIO->MouseDelta.y / (1080 * 2));
 			}
 			if (!single_step && !no_time_loss)
 			{
@@ -270,7 +261,51 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 			if (UpdateToFrameCounter >= UpdateToFrameRatio)
 			{
-				ImGui_ImplSDL2_NewFrame();
+				// update input
+				ImGui_ImplWiiU_ControllerInput input;
+				VPADStatus vpadStatus;
+				VPADReadError vpadError;
+				KPADStatus kpadStatus[4];
+				VPADRead(VPAD_CHAN_0, &vpadStatus, 1, &vpadError);
+				
+				if (vpadError == VPAD_READ_SUCCESS) {
+					input.vpad = &vpadStatus;
+					if (!ImIO->WantCaptureKeyboard) {
+						pb::InputDown({InputTypes::Gamepad, vpadStatus.trigger});
+						pb::InputUp({InputTypes::Gamepad, vpadStatus.release});
+					}
+				}
+
+				for (int i = 0; i < 4; i++) {
+					KPADError kpadError;
+					KPADReadEx((KPADChan)i, &kpadStatus[i], 1, &kpadError);
+
+					if (kpadError == KPAD_ERROR_OK) {
+						input.kpad[i] = &kpadStatus[i];
+
+						if (!ImIO->WantCaptureKeyboard) {
+							switch (kpadStatus[i].extensionType) {
+								case WPAD_EXT_CORE:
+								case WPAD_EXT_MPLUS:
+									pb::InputDown({InputTypes::Wiimote, kpadStatus[i].trigger});
+									pb::InputUp({InputTypes::Wiimote, kpadStatus[i].release});
+									break;
+								case WPAD_EXT_CLASSIC:
+								case WPAD_EXT_MPLUS_CLASSIC:
+									pb::InputDown({InputTypes::Classic, kpadStatus[i].classic.trigger});
+									pb::InputUp({InputTypes::Classic, kpadStatus[i].classic.release});
+									break;
+								case WPAD_EXT_PRO_CONTROLLER:
+									pb::InputDown({InputTypes::Classic, kpadStatus[i].pro.trigger});
+									pb::InputUp({InputTypes::Classic, kpadStatus[i].pro.release});
+									break;
+							}
+						}
+					}
+				}
+
+				ImGui_ImplWiiU_ProcessInput(&input);
+				ImGui_ImplSDLRenderer_NewFrame();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -281,7 +316,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				render::PresentVScreen();
 
 				ImGui::Render();
-				ImGuiSDL::Render(ImGui::GetDrawData());
+				ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
 
 				SDL_RenderPresent(renderer);
 				frameCounter++;
@@ -326,13 +361,16 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	midi::music_shutdown();
 	pb::uninit();
 	Sound::Close();
-	ImGuiSDL::Deinitialize();
-	ImGui_ImplSDL2_Shutdown();
+	ImGui_ImplSDLRenderer_Shutdown();
+	ImGui_ImplWiiU_Shutdown();
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	ImGui::DestroyContext();
 	SDL_Quit();
 	romfsExit();
+	KPADShutdown();
+	WHBLogUdpDeinit();
+	WHBLogCafeDeinit();
 	WHBProcShutdown();
 
 	return return_value;
@@ -386,8 +424,6 @@ void winmain::RenderUi()
 
 int winmain::event_handler(const SDL_Event* event)
 {
-	ImGui_ImplSDL2_ProcessEvent(event);
-
 	if (ImIO->WantCaptureMouse && !options::WaitingForInput())
 	{
 		if (mouse_down)
@@ -427,11 +463,11 @@ int winmain::event_handler(const SDL_Event* event)
 		return_value = 0;
 		return 0;
 	case SDL_KEYUP:
-		pb::InputUp({InputTypes::Keyboard, event->key.keysym.sym});
+		pb::InputUp({InputTypes::Keyboard, (unsigned int)event->key.keysym.sym});
 		break;
 	case SDL_KEYDOWN:
 		if (!event->key.repeat)
-			pb::InputDown({InputTypes::Keyboard, event->key.keysym.sym});
+			pb::InputDown({InputTypes::Keyboard, (unsigned int)event->key.keysym.sym});
 		switch (event->key.keysym.sym)
 		{
 		case SDLK_ESCAPE:
@@ -582,82 +618,6 @@ int winmain::event_handler(const SDL_Event* event)
 		default: ;
 		}
 		break;
-	case SDL_JOYDEVICEADDED:
-		SDL_JoystickOpen(event->jdevice.which);
-		break;
-	case SDL_JOYDEVICEREMOVED:
-		{
-			SDL_Joystick* joystick = SDL_JoystickFromInstanceID(event->jdevice.which);
-			if (joystick)
-			{
-				SDL_JoystickClose(joystick);
-			}
-		}
-		break;
-	case SDL_JOYBUTTONDOWN:
-		// this sucks
-		switch (event->jbutton.button) {
-			case 0:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_B});
-				break;
-			case 5:
-				options::toggle(Menu1::Music);
-				break;
-			case 10:
-				pause();
-				break;
-			case 11:
-				winmain::new_game();
-				break;
-			case 6:
-			case 8:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
-				break;
-			case 7:
-			case 9:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
-				break;
-			case 13:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP});
-				break;
-			case 12:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT});
-				break;
-			case 14:
-				pb::InputDown({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT});
-				break;
-		}
-		break;
-	case SDL_JOYBUTTONUP:
-		switch (event->jbutton.button) {
-			case 0:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_B});
-				break;
-			case 10:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_START});
-				break;
-			case 11:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK});
-				break;
-			case 6:
-			case 8:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
-				break;
-			case 7:
-			case 9:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
-				break;
-			case 13:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP});
-				break;
-			case 12:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT});
-				break;
-			case 14:
-				pb::InputUp({InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT});
-				break;
-		}
-		break;
 	default: ;
 	}
 
@@ -719,10 +679,15 @@ void winmain::a_dialog()
 		ImGui::TextUnformatted("Version 2.0.1");
 		if (ImGui::SmallButton("Project home: https://github.com/k4zmu2a/SpaceCadetPinball"))
 		{
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-			// Relatively new feature, skip with older SDL
-			SDL_OpenURL("https://github.com/k4zmu2a/SpaceCadetPinball");
-#endif
+			SysAppBrowserArgs args = {
+				{
+					nullptr,
+					0
+				},
+				"https://github.com/k4zmu2a/SpaceCadetPinball",
+				strlen("https://github.com/k4zmu2a/SpaceCadetPinball")
+			};
+			SYSSwitchToBrowserForViewer(&args);
 		}
 		ImGui::Separator();
 

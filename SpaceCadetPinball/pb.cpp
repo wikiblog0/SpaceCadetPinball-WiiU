@@ -27,6 +27,7 @@
 #include "TFlipper.h"
 #include "TPinballTable.h"
 #include "TTextBox.h"
+#include "menu.h"
 
 #include <nn/act.h>
 #include <locale>
@@ -447,6 +448,22 @@ void pb::InputUp(GameInput input)
 void pb::InputDown(GameInput input)
 {
 	options::InputDown(input);
+
+	// these inputs should always be processed
+	if (AnyBindingMatchesInput(options::Options.Key.Pause, input))
+	{
+		winmain::pause();
+	}
+	if (AnyBindingMatchesInput(options::Options.Key.NewGame, input))
+	{
+		winmain::new_game();
+	}
+	if (AnyBindingMatchesInput(options::Options.Key.Menu, input))
+	{
+		winmain::pause(false);
+		menu::ShowWindow = true;
+	}
+
 	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
 		return;
 
@@ -480,9 +497,10 @@ void pb::InputDown(GameInput input)
 		if (!MainTable->TiltLockFlag)
 			nudge::nudge_up();
 	}
-	if (input.Type == InputTypes::GameController && input.Value == SDL_CONTROLLER_BUTTON_BACK)
+	if (AnyBindingMatchesInput(options::Options.Key.ShowHighScores, input))
 	{
-		winmain::new_game();
+		winmain::pause(false);
+		pb::high_scores();
 	}
 
 	if (cheat_mode && input.Type == InputTypes::Keyboard)
@@ -596,7 +614,7 @@ void pb::end_game()
 					strncpy(entry.Name, miiName, sizeof entry.Name - 1);
 				} else
 				{
-				strncpy(entry.Name, pinball::get_rc_string(scoreIndex[i] + 26, 0), sizeof entry.Name - 1);
+					strncpy(entry.Name, pinball::get_rc_string(scoreIndex[i] + 26, 0), sizeof entry.Name - 1);
 				}
 
 				high_score::show_and_set_high_score_dialog({ entry, -1 });
@@ -682,8 +700,11 @@ void pb::PushCheat(const std::string& cheat)
 
 bool pb::AnyBindingMatchesInput(GameInput (&options)[3], GameInput key)
 {
-	for (auto& option : options)
-		if (key == option)
+	for (auto& option : options) {
+		if (option.Type == InputTypes::Gamepad && option.Value == (VPAD_BUTTON_L | VPAD_BUTTON_ZL) && key.Value && key.Type == InputTypes::Gamepad) {
+		}
+		if (key.Type == option.Type && key.Value & option.Value)
 			return true;
+	}
 	return false;
 }

@@ -7,6 +7,9 @@
 #include "Sound.h"
 #include "winmain.h"
 
+#include <vpad/input.h>
+#include <padscore/kpad.h>
+
 constexpr int options::MaxUps, options::MaxFps, options::MinUps, options::MinFps, options::DefUps, options::DefFps;
 constexpr int options::MaxSoundChannels, options::MinSoundChannels, options::DefSoundChannels;
 constexpr int options::MaxVolume, options::MinVolume, options::DefVolume;
@@ -48,49 +51,63 @@ void options::InitPrimary()
 	Options.Key = Options.KeyDft =
 	{
 		{
-			{InputTypes::Keyboard, SDLK_z},
-			{InputTypes::Mouse, SDL_BUTTON_LEFT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER},
+			{InputTypes::Gamepad, VPAD_BUTTON_L | VPAD_BUTTON_ZL},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_L | WPAD_CLASSIC_BUTTON_ZL},
+			{InputTypes::Wiimote, WPAD_BUTTON_1},
 		},
 		{
-			{InputTypes::Keyboard, SDLK_SLASH},
-			{InputTypes::Mouse, SDL_BUTTON_RIGHT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+			{InputTypes::Gamepad, VPAD_BUTTON_R | VPAD_BUTTON_ZR},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_R | WPAD_CLASSIC_BUTTON_ZR},
+			{InputTypes::Wiimote, WPAD_BUTTON_2},
 		},
 		{
-			{InputTypes::Keyboard, SDLK_SPACE},
-			{InputTypes::Mouse, SDL_BUTTON_MIDDLE},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_B},
+			{InputTypes::Gamepad, VPAD_BUTTON_A},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_A},
+			{InputTypes::Wiimote, WPAD_BUTTON_A},
 		},
 		{
-			{InputTypes::Keyboard, SDLK_x},
-			{InputTypes::Mouse, SDL_BUTTON_X1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT},
+			{InputTypes::Gamepad, VPAD_BUTTON_LEFT},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_LEFT},
+			{InputTypes::Wiimote, WPAD_BUTTON_UP}, // wiimote is held sideways so left is up
 		},
 		{
-			{InputTypes::Keyboard, SDLK_PERIOD},
-			{InputTypes::Mouse, SDL_BUTTON_X2},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT},
+			{InputTypes::Gamepad, VPAD_BUTTON_RIGHT},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_RIGHT},
+			{InputTypes::Wiimote, WPAD_BUTTON_DOWN},
 		},
 		{
-			{InputTypes::Keyboard, SDLK_UP},
-			{InputTypes::Mouse, SDL_BUTTON_X2 + 1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP},
+			{InputTypes::Gamepad, VPAD_BUTTON_UP},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_UP},
+			{InputTypes::Wiimote, WPAD_BUTTON_RIGHT},
+		},
+		{
+			{InputTypes::Gamepad, VPAD_BUTTON_PLUS},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_PLUS},
+			{InputTypes::Wiimote, WPAD_BUTTON_PLUS},
+		},
+		{
+			{InputTypes::Gamepad, VPAD_BUTTON_MINUS},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_MINUS},
+			{InputTypes::Wiimote, WPAD_BUTTON_MINUS},
+		},
+		{
+			{InputTypes::Gamepad, VPAD_BUTTON_X},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_X},
+			{InputTypes::None, 0}, // wiimote doesn't have enough buttons
+		},
+		{
+			{InputTypes::Gamepad, VPAD_BUTTON_Y},
+			{InputTypes::Classic, WPAD_CLASSIC_BUTTON_Y},
+			{InputTypes::Wiimote, WPAD_BUTTON_B},
 		},
 	};
-	GetInput("Left Flipper key", Options.Key.LeftFlipper);
-	GetInput("Right Flipper key", Options.Key.RightFlipper);
-	GetInput("Plunger key", Options.Key.Plunger);
-	GetInput("Left Table Bump key", Options.Key.LeftTableBump);
-	GetInput("Right Table Bump key", Options.Key.RightTableBump);
-	GetInput("Bottom Table Bump key", Options.Key.BottomTableBump);
 
 	Options.Sounds = get_int("Sounds", true);
 	Options.Music = get_int("Music", true);
 	Options.FullScreen = get_int("FullScreen", false);
 	Options.Players = get_int("Players", 1);
 	Options.UniformScaling = get_int("Uniform scaling", true);
-	ImGui::GetIO().FontGlobalScale = get_float("UI Scale", 1.0f);
+	ImGui::GetIO().FontGlobalScale = get_float("UI Scale", 3.0f);
 	Options.Resolution = get_int("Screen Resolution", 0);
 	Options.LinearFiltering = get_int("Linear Filtering", true);
 	Options.FramesPerSecond = Clamp(get_int("Frames Per Second", DefFps), MinFps, MaxFps);
@@ -203,8 +220,8 @@ void options::GetInput(const std::string& rowName, GameInput (&defaultValues)[3]
 		auto name = rowName + " " + std::to_string(i);
 		auto inputType = static_cast<InputTypes>(get_int((name + " type").c_str(), -1));
 		auto input = get_int((name + " input").c_str(), -1);
-		if (inputType <= InputTypes::GameController && input != -1)
-			defaultValues[i] = {inputType, input};
+		if (inputType <= InputTypes::Wiimote && input != -1)
+			defaultValues[i] = {inputType, (unsigned int)input};
 	}
 }
 
@@ -304,10 +321,6 @@ void options::InputDown(GameInput input)
 		if (input.Type == InputTypes::Keyboard && input.Value >= SDLK_F1 && input.Value <= SDLK_F12)
 			return;
 
-		// Start is reserved for pause
-		if (input.Type == InputTypes::GameController && input.Value == SDL_CONTROLLER_BUTTON_START)
-			return;
-
 		*ControlWaitingForInput = input;
 		ControlWaitingForInput = nullptr;
 	}
@@ -395,10 +408,6 @@ void options::RenderControlDialog()
 								keyName = mouseButtons[ctrl.Value];
 							else
 								keyName = (tmp += "Mouse " + std::to_string(ctrl.Value)).c_str();
-							break;
-						case InputTypes::GameController:
-							keyName = SDL_GameControllerGetStringForButton(
-								static_cast<SDL_GameControllerButton>(ctrl.Value));
 							break;
 						case InputTypes::None:
 						default:
