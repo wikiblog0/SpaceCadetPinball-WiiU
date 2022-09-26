@@ -174,12 +174,17 @@ void TTextBox::DrawImGui()
 	snprintf(windowName, sizeof(windowName), "TTextBox_%p", static_cast<void*>(this));
 	if (ImGui::Begin(windowName, nullptr, window_flags))
 	{
-		ImGui::SetWindowFontScale(fullscrn::GetScreenToPinballRatio());
+		// If we don't do this, the font will be scaled up massively
+		ImGuiIO &io = ImGui::GetIO();
+		float oldFontScale = io.FontGlobalScale;
+		io.FontGlobalScale = 1.0;
+		// ImGui::SetWindowFontScale(fullscrn::GetScreenToPinballRatio());
 
 		// ToDo: centered text in FT
 		ImGui::PushStyleColor(ImGuiCol_Text, pb::TextBoxColor);
 		ImGui::TextWrapped("%s", CurrentMessage->Text);
 		ImGui::PopStyleColor();
+		io.FontGlobalScale = oldFontScale;
 	}
 	ImGui::End();
 }

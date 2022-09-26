@@ -219,7 +219,7 @@ bool ImGui_ImplSDLRenderer_CreateFontsTexture()
     }
     SDL_UpdateTexture(bd->FontTexture, NULL, pixels, 4 * width);
     SDL_SetTextureBlendMode(bd->FontTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(bd->FontTexture, SDL_ScaleModeLinear);
+    SDL_SetTextureScaleMode(bd->FontTexture, SDL_ScaleModeNearest);
 
     // Store our identifier
     io.Fonts->SetTexID((ImTextureID)(intptr_t)bd->FontTexture);

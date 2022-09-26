@@ -8,6 +8,7 @@
 #include "fullscrn.h"
 #include "render.h"
 #include "control.h"
+#include "translations.h"
 
 bool menu::ShowWindow = false;
 
@@ -20,13 +21,13 @@ void menu::RenderMenuWindow()
     if (ImGui::Begin("Options Menu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("GAME");
-        if (ImGui::Button("New Game"))
+        if (ImGui::Button(pb::get_rc_string(Msg::Menu1_New_Game)))
             winmain::new_game();
         ImGui::SameLine();
 
         if (!winmain::LaunchBallEnabled)
             ImGui::BeginDisabled();
-        if (ImGui::Button("Launch Ball"))
+        if (ImGui::Button(pb::get_rc_string(Msg::Menu1_Launch_Ball)))
         {
             winmain::end_pause();
             pb::launch_ball();
@@ -35,13 +36,9 @@ void menu::RenderMenuWindow()
             ImGui::EndDisabled();
         ImGui::SameLine();
 
-        if (ImGui::Button("Pause/Resume Game"))
-            winmain::pause();
-        ImGui::SameLine();
-
         if (!winmain::HighScoresEnabled)
             ImGui::BeginDisabled();
-        if (ImGui::Button("High Scores..."))
+        if (ImGui::Button(pb::get_rc_string(Msg::Menu1_High_Scores)))
         {
             winmain::pause(false);
             pb::high_scores();
@@ -50,7 +47,7 @@ void menu::RenderMenuWindow()
             ImGui::EndDisabled();
         ImGui::SameLine();
 
-        if (ImGui::Checkbox("Demo", &winmain::DemoActive))
+        if (ImGui::Checkbox(pb::get_rc_string(Msg::Menu1_Demo), &winmain::DemoActive))
         {
             winmain::end_pause();
             pb::toggle_demo();
@@ -59,38 +56,45 @@ void menu::RenderMenuWindow()
         ImGui::Separator();
         ImGui::Text("OPTIONS");
 
-        ImGui::Text("Select Players");
-        if (ImGui::BeginListBox("##", ImVec2(200, ImGui::GetTextLineHeightWithSpacing() * 4.0f + GImGui->Style.FramePadding.y * 2.0f)))
+        if (ImGui::BeginCombo(pb::get_rc_string(Msg::Menu1_Select_Players), pb::get_rc_string((Msg)((int)Msg::Menu1_1Player + options::Options.Players - 1))))
         {
-            if (ImGui::Selectable("1 Player", options::Options.Players == 1))
+            for (int i = 0; i < 4; i++)
             {
-                options::toggle(Menu1::OnePlayer);
-                winmain::new_game();
+                if (ImGui::Selectable(pb::get_rc_string((Msg)((int)Msg::Menu1_1Player + i)), i == options::Options.Players - 1))
+                {
+                    options::toggle((Menu1)((int)Menu1::OnePlayer + i));
+                    winmain::new_game();
+                }
+
+                if (i == options::Options.Players - 1)
+                    ImGui::SetItemDefaultFocus();
             }
-            if (ImGui::Selectable("2 Players", options::Options.Players == 2))
+            ImGui::EndCombo();
+        }
+
+        if (ImGui::BeginCombo("Language (requires restart)", translations::GetCurrentLanguage()->DisplayName))
+        {
+            auto currentLanguage = translations::GetCurrentLanguage();
+            for (auto &item : translations::Languages)
             {
-                options::toggle(Menu1::TwoPlayers);
-                winmain::new_game();
+                if (ImGui::Selectable(item.DisplayName, currentLanguage->Language == item.Language))
+                {
+                    translations::SetCurrentLanguage(item.ShortName);
+                    winmain::Restart();
+                }
+
+                if (currentLanguage->Language == item.Language)
+                    ImGui::SetItemDefaultFocus();
             }
-            if (ImGui::Selectable("3 Players", options::Options.Players == 3))
-            {
-                options::toggle(Menu1::ThreePlayers);
-                winmain::new_game();
-            }
-            if (ImGui::Selectable("4 Players", options::Options.Players == 4))
-            {
-                options::toggle(Menu1::FourPlayers);
-                winmain::new_game();
-            }
-            ImGui::EndListBox();
+            ImGui::EndCombo();
         }
 
         ImGui::Text("AUDIO");
-        ImGui::Checkbox("Sound", &options::Options.Sounds);
+        ImGui::Checkbox(pb::get_rc_string(Msg::Menu1_Sounds), &options::Options.Sounds);
         ImGui::SameLine();
         ImGui::Checkbox("Stereo Sound Effects", &options::Options.SoundStereo);
         ImGui::SameLine();
-        if (ImGui::Checkbox("Music", &options::Options.Music))
+        if (ImGui::Checkbox(pb::get_rc_string(Msg::Menu1_Music), &options::Options.Music))
         {
             if (!options::Options.Music)
                 midi::music_stop();
@@ -113,7 +117,7 @@ void menu::RenderMenuWindow()
 
         ImGui::Text("GRAPHICS");
 
-        if (ImGui::Checkbox("Uniform Scaling", &options::Options.UniformScaling))
+        if (ImGui::Checkbox(pb::get_rc_string(Msg::Menu1_WindowUniformScale), &options::Options.UniformScaling))
             fullscrn::window_size_changed();
         ImGui::SameLine();
         if (ImGui::Checkbox("Linear Filtering", &options::Options.LinearFiltering))
@@ -123,7 +127,8 @@ void menu::RenderMenuWindow()
             fullscrn::window_size_changed();
 
         ImGui::Text("GAME DATA");
-        ImGui::Checkbox("Prefer 3DPB Data (requires restart)", &options::Options.Prefer3DPBGameData);
+        if (ImGui::Checkbox("Prefer 3DPB Data (requires restart)", &options::Options.Prefer3DPBGameData))
+            winmain::Restart();
 
         // these are kinda pointless on the wii u
         // ImGui::Text("OTHER");
@@ -156,7 +161,7 @@ void menu::RenderMenuWindow()
         if (ImGui::Button("Close"))
             ShowWindow = false;
         ImGui::SameLine();
-        if (ImGui::Button("About Pinball"))
+        if (ImGui::Button(pb::get_rc_string(Msg::Menu1_About_Pinball)))
         {
             winmain::pause(false);
             winmain::ShowAboutDialog = true;
