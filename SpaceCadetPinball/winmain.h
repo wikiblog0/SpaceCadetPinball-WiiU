@@ -60,6 +60,8 @@ struct WelfordState
 
 class winmain
 {
+	friend class menu;
+
 	using Clock = SdlPerformanceClock; // Or std::chrono::steady_clock.
 	using DurationMs = std::chrono::duration<double, std::milli>;
 	using TimePoint = std::chrono::time_point<Clock>;

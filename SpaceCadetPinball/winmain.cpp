@@ -9,6 +9,7 @@
 #include "pb.h"
 #include "render.h"
 #include "Sound.h"
+#include "menu.h"
 
 #include <whb/proc.h>
 #include <romfs-wiiu.h>
@@ -372,6 +373,8 @@ void winmain::RenderUi()
 		ImGui::ShowDemoWindow(&ShowImGuiDemo);
 #endif
 
+	if (menu::ShowWindow)
+		menu::RenderMenuWindow();
 	a_dialog();
 	high_score::RenderHighScoreDialog();
 	if (ShowSpriteViewer)
