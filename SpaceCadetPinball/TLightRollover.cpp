@@ -13,23 +13,21 @@ TLightRollover::TLightRollover(TPinballTable* table, int groupIndex) : TRollover
 {
 	RolloverFlag = 0;
 	Timer = 0;
-	if (ListBitmap != nullptr)
-		render::sprite_set_bitmap(RenderSprite, nullptr);
+	SpriteSet(-1);
 	build_walls(groupIndex);
 	FloatArr = *loader::query_float_attribute(groupIndex, 0, 407);
 }
 
-int TLightRollover::Message(int code, float value)
+int TLightRollover::Message(MessageCode code, float value)
 {
-	if (code == 1024)
+	if (code == MessageCode::Reset)
 	{
 		ActiveFlag = 1;
 		RolloverFlag = 0;
 		if (Timer)
 			timer::kill(Timer);
 		Timer = 0;
-		if (ListBitmap)
-			render::sprite_set_bitmap(RenderSprite, nullptr);
+		SpriteSet(-1);
 	}
 	return 0;
 }
@@ -54,10 +52,9 @@ void TLightRollover::Collision(TBall* ball, vector2* nextPosition, vector2* dire
 		else
 		{
 			loader::play_sound(SoftHitSoundId, this, "TLightRollover");
-			control::handler(63, this);
+			control::handler(MessageCode::ControlCollision, this);
 			RolloverFlag = RolloverFlag == 0;
-			if (ListBitmap)
-				render::sprite_set_bitmap(RenderSprite, ListBitmap->at(0));
+			SpriteSet(0);
 		}
 	}
 }
@@ -65,6 +62,6 @@ void TLightRollover::Collision(TBall* ball, vector2* nextPosition, vector2* dire
 void TLightRollover::delay_expired(int timerId, void* caller)
 {
 	auto roll = static_cast<TLightRollover*>(caller);
-	render::sprite_set_bitmap(roll->RenderSprite, nullptr);
+	roll->SpriteSet(-1);
 	roll->Timer = 0;
 }

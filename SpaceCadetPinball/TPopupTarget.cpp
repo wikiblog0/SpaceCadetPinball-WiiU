@@ -10,38 +10,38 @@
 
 TPopupTarget::TPopupTarget(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, true)
 {
-	this->Timer = 0;
-	this->TimerTime = *loader::query_float_attribute(groupIndex, 0, 407);
+	Timer = 0;
+	TimerTime = *loader::query_float_attribute(groupIndex, 0, 407);
 }
 
-int TPopupTarget::Message(int code, float value)
+int TPopupTarget::Message(MessageCode code, float value)
 {
 	switch (code)
 	{
-	case 49:
-		this->ActiveFlag = 0;
-		render::sprite_set_bitmap(this->RenderSprite, nullptr);
+	case MessageCode::TPopupTargetDisable:
+		ActiveFlag = 0;
+		SpriteSet(-1);
 		break;
-	case 50:
-		this->Timer = timer::set(this->TimerTime, this, TimerExpired);
+	case MessageCode::TPopupTargetEnable:
+		Timer = timer::set(TimerTime, this, TimerExpired);
 		break;
-	case 1020:
-		this->PlayerMessagefieldBackup[this->PinballTable->CurrentPlayer] = this->MessageField;
-		this->MessageField = this->PlayerMessagefieldBackup[static_cast<int>(floor(value))];
-		TPopupTarget::Message(50 - (MessageField != 0), 0.0);
+	case MessageCode::PlayerChanged:
+		PlayerMessagefieldBackup[PinballTable->CurrentPlayer] = MessageField;
+		MessageField = PlayerMessagefieldBackup[static_cast<int>(floor(value))];
+		TPopupTarget::Message(MessageField ? MessageCode::TPopupTargetDisable : MessageCode::TPopupTargetEnable, 0.0);
 		break;
-	case 1024:
-		{
-			this->MessageField = 0;
-			int* playerPtr = this->PlayerMessagefieldBackup;
-			for (auto index = 0; index < this->PinballTable->PlayerCount; ++index)
+	case MessageCode::Reset:
+	{
+			MessageField = 0;
+			int* playerPtr = PlayerMessagefieldBackup;
+			for (auto index = 0; index < PinballTable->PlayerCount; ++index)
 			{
 				*playerPtr = 0;
 				++playerPtr;
 			}
 
-			if (this->Timer)
-				timer::kill(this->Timer);
+			if (Timer)
+				timer::kill(Timer);
 			TimerExpired(0, this);
 			break;
 		}
@@ -54,23 +54,23 @@ int TPopupTarget::Message(int code, float value)
 void TPopupTarget::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                              TEdgeSegment* edge)
 {
-	if (this->PinballTable->TiltLockFlag)
+	if (PinballTable->TiltLockFlag)
 	{
-		maths::basic_collision(ball, nextPosition, direction, this->Elasticity, this->Smoothness, 1000000000.0, 0.0);
+		maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, 1000000000.0, 0.0);
 	}
 	else if (maths::basic_collision(
 		ball,
 		nextPosition,
 		direction,
-		this->Elasticity,
-		this->Smoothness,
-		this->Threshold,
-		this->Boost) > this->Threshold)
+		Elasticity,
+		Smoothness,
+		Threshold,
+		Boost) > Threshold)
 	{
-		if (this->HardHitSoundId)
-			loader::play_sound(this->HardHitSoundId, this, "TPopupTarget1");
-		this->Message(49, 0.0);
-		control::handler(63, this);
+		if (HardHitSoundId)
+			loader::play_sound(HardHitSoundId, this, "TPopupTarget1");
+		Message(MessageCode::TPopupTargetDisable, 0.0);
+		control::handler(MessageCode::ControlCollision, this);
 	}
 }
 
@@ -79,7 +79,7 @@ void TPopupTarget::TimerExpired(int timerId, void* caller)
 	auto target = static_cast<TPopupTarget*>(caller);
 	target->Timer = 0;
 	target->ActiveFlag = 1;
-	render::sprite_set_bitmap(target->RenderSprite, target->ListBitmap->at(0));
+	target->SpriteSet(0);
 	if (timerId)
 	{
 		if (target->SoftHitSoundId)

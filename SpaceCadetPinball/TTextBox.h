@@ -14,14 +14,15 @@ public:
 	int Timer;
 	gdrv_bitmap8* BgBmp;
 	score_msg_font_type* Font;
-	TTextBoxMessage* Message1;
-	TTextBoxMessage* Message2;
+	TTextBoxMessage* CurrentMessage;
+	TTextBoxMessage* PreviousMessage;
 
 	TTextBox(TPinballTable* table, int groupIndex);
 	~TTextBox() override;
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	void Clear();
 	void Display(const char* text, float time);
+	void DrawImGui();
 
 private:
 	struct LayoutResult

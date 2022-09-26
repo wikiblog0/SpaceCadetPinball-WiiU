@@ -7,7 +7,7 @@ class TLight;
 struct TLightGroup_player_backup
 {
 	int MessageField;
-	int MessageField2;
+	MessageCode MessageField2;
 	float Timer1Time;
 	int Unknown3;
 };
@@ -19,7 +19,7 @@ class TLightGroup :
 public:
 	TLightGroup(TPinballTable* table, int groupIndex);
 	~TLightGroup() override = default;
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	virtual void Reset();
 	void reschedule_animation(float time);
 	void start_animation();
@@ -32,7 +32,7 @@ public:
 	std::vector<TLight*> List;
 	float Timer1Time{};
 	float Timer1TimeDefault;
-	int MessageField2{};
+	MessageCode MessageField2{};
 	int AnimationFlag{};
 	int NotifyTimer;
 	int Timer;

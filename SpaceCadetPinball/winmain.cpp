@@ -4,11 +4,12 @@
 #include "control.h"
 #include "fullscrn.h"
 #include "midi.h"
-#include "pinball.h"
 #include "options.h"
 #include "pb.h"
 #include "render.h"
 #include "Sound.h"
+#include "translations.h"
+#include "font_selection.h"
 #include "menu.h"
 
 #include <whb/proc.h>
@@ -86,12 +87,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	pinball::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
+	pb::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
 
 	// SDL window
 	SDL_Window* window = SDL_CreateWindow
 	(
-		pinball::get_rc_string(38, 0),
+		pb::get_rc_string(Msg::STRING139),
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		1920, 1080,
 		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
@@ -129,13 +130,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	// ImGui init
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-	ImGuiIO& io = ImGui::GetIO();
-	ImIO = &io;
 	ImGui_ImplWiiU_Init();
 	ImGui_ImplSDLRenderer_Init(renderer);
 	// Initialize backend stuff
 	ImGui_ImplSDLRenderer_NewFrame();
+	ImGui::StyleColorsDark();
+	ImGuiIO& io = ImGui::GetIO();
+	ImIO = &io;
 	io.DisplaySize.x = 1920;
 	io.DisplaySize.y = 1080;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
@@ -147,6 +148,36 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	// First step: just load the options
 	options::InitPrimary();
+
+	if(!Options.FontFileName.empty()) 
+	{
+		ImGui_ImplSDLRenderer_DestroyFontsTexture();
+		io.Fonts->Clear();
+		ImVector<ImWchar> ranges;
+		translations::GetGlyphRange(&ranges);
+		ImFontConfig fontConfig{};
+
+		// ToDo: further tweak font options, maybe try imgui_freetype
+		fontConfig.OversampleV = 2;
+		fontConfig.OversampleH = 4;
+
+		// ToDo: improve font file test, checking if file exists is not enough
+		auto fileName = Options.FontFileName.c_str();
+		auto fileHandle = fopenu(fileName, "rb");
+		if (fileHandle)
+		{
+			fclose(fileHandle);
+
+			// ToDo: Bind font size to UI scale
+			if (!io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig, ranges.Data))
+				io.Fonts->AddFontDefault();
+		}
+		else
+			io.Fonts->AddFontDefault();
+
+		io.Fonts->Build();
+		ImGui_ImplSDLRenderer_CreateFontsTexture();
+	}
 
 	// Data search order: WD, executable path, user pref path, platform specific paths.
 	std::vector<const char*> searchPaths
@@ -167,7 +198,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	if (!Sound::Init(Options.SoundChannels, Options.Sounds, Options.SoundVolume))
 		Options.Sounds = false;
 
-	if (!pinball::quickFlag && !midi::music_init(Options.MusicVolume))
+	if (!pb::quickFlag && !midi::music_init(Options.MusicVolume))
 		Options.Music = false;
 
 	if (pb::init())
@@ -427,11 +458,15 @@ void winmain::RenderUi()
 		menu::RenderMenuWindow();
 	a_dialog();
 	high_score::RenderHighScoreDialog();
+	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
 	options::RenderControlDialog();
 	if (DispGRhistory)
 		RenderFrameTimeDialog();
+	
+	// Print game texts on the sidebar
+	gdrv::grtext_draw_ttext_in_box();
 }
 
 int winmain::event_handler(const SDL_Event* event)
@@ -666,8 +701,8 @@ void winmain::memalloc_failure()
 {
 	midi::music_stop();
 	Sound::Close();
-	char* caption = pinball::get_rc_string(170, 0);
-	char* text = pinball::get_rc_string(179, 0);
+	const char* caption = pb::get_rc_string(Msg::STRING270);
+	const char* text = pb::get_rc_string(Msg::STRING279);
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, caption, text, MainWindow);
 	std::exit(1);
 }
@@ -677,13 +712,13 @@ void winmain::a_dialog()
 	if (ShowAboutDialog == true)
 	{
 		ShowAboutDialog = false;
-		ImGui::OpenPopup("About");
+		ImGui::OpenPopup(pb::get_rc_string(Msg::STRING204));
 	}
 
 	bool unused_open = true;
-	if (ImGui::BeginPopupModal("About", &unused_open, ImGuiWindowFlags_AlwaysAutoResize))
+	if (ImGui::BeginPopupModal(pb::get_rc_string(Msg::STRING204), &unused_open, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		ImGui::TextUnformatted("3D Pinball for Windows - Space Cadet");
+		ImGui::TextUnformatted(pb::get_rc_string(Msg::STRING139));
 		ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 		ImGui::Separator();
 

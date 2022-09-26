@@ -9,21 +9,25 @@ TTimer::TTimer(TPinballTable* table, int groupIndex) : TPinballComponent(table, 
 	Timer = 0;
 }
 
-int TTimer::Message(int code, float value)
+int TTimer::Message(MessageCode code, float value)
 {
-	if (code == 59)
+	switch (code)
 	{
+	case MessageCode::TTimerResetTimer:
 		if (Timer)
 			timer::kill(Timer);
 		Timer = timer::set(value, this, TimerExpired);
-	}
-	else if (code == 1011 || code == 1022 || code == 1024)
-	{
+		break;
+	case MessageCode::SetTiltLock:
+	case MessageCode::GameOver:
+	case MessageCode::Reset:
 		if (Timer)
 		{
 			timer::kill(Timer);
 			Timer = 0;
 		}
+		break;
+	default: break;
 	}
 	return 0;
 }
@@ -33,5 +37,5 @@ void TTimer::TimerExpired(int timerId, void* caller)
 {
 	auto timer = static_cast<TTimer*>(caller);
 	timer->Timer = 0;
-	control::handler(60, timer);
+	control::handler(MessageCode::ControlTimerExpired, timer);
 }

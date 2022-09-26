@@ -58,38 +58,45 @@ TFlipper::~TFlipper()
 	}
 }
 
-int TFlipper::Message(int code, float value)
+int TFlipper::Message(MessageCode code, float value)
 {
-	if (code == 1 || code == 2 || (code > 1008 && code <= 1011) || code == 1022)
+	switch (code)
 	{
-		if (code == 1)
+	case MessageCode::TFlipperExtend:
+	case MessageCode::TFlipperRetract:
+	case MessageCode::Resume:
+	case MessageCode::LooseFocus:
+	case MessageCode::SetTiltLock:
+	case MessageCode::GameOver:
+		if (code == MessageCode::TFlipperExtend)
 		{
-			control::handler(1, this);
+			control::handler(MessageCode::TFlipperExtend, this);
 			loader::play_sound(HardHitSoundId, this, "TFlipper1");
 		}
-		else if (code == 2)
+		else if (code == MessageCode::TFlipperRetract)
 		{
 			loader::play_sound(SoftHitSoundId, this, "TFlipper2");
 		}
 		else
 		{
 			// Retract for all non-input messages
-			code = 2;
+			code = MessageCode::TFlipperRetract;
 		}
 
 		MessageField = FlipperEdge->SetMotion(code, value);
-		return 0;
-	}
-
-	if (code == 1020 || code == 1024)
-	{
+		break;
+	case MessageCode::PlayerChanged:
+	case MessageCode::Reset:
 		if (MessageField)
 		{
 			MessageField = 0;
-			FlipperEdge->SetMotion(1024, value);
+			FlipperEdge->SetMotion(MessageCode::Reset, value);
 			UpdateSprite(0);
 		}
+		break;
+	default: break;
 	}
+
 	return 0;
 }
 
@@ -112,12 +119,5 @@ void TFlipper::UpdateSprite(float timeNow)
 		return;
 
 	BmpIndex = newBmpIndex;
-	auto bmp = ListBitmap->at(BmpIndex);
-	auto zMap = ListZMap->at(BmpIndex);
-	render::sprite_set(
-		RenderSprite,
-		bmp,
-		zMap,
-		bmp->XPosition - PinballTable->XOffset,
-		bmp->YPosition - PinballTable->YOffset);
+	SpriteSet(BmpIndex);
 }

@@ -9,7 +9,7 @@ protected:
 public:
 	TRollover(TPinballTable* table, int groupIndex);
 	~TRollover() override = default;
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 		TEdgeSegment* edge) override;
 	void build_walls(int groupIndex);

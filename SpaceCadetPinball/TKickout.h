@@ -8,7 +8,7 @@ class TKickout :
 {
 public:
 	TKickout(TPinballTable* table, int groupIndex, bool someFlag);
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 	               TEdgeSegment* edge) override;
 	int FieldEffect(TBall* ball, vector2* vecDst) override;
@@ -16,7 +16,7 @@ public:
 	static void TimerExpired(int timerId, void* caller);
 	static void ResetTimerExpired(int timerId, void* caller);
 
-	int KickFlag1;
+	int BallCaputeredFlag;
 	int NotSomeFlag;
 	int Timer;
 	float TimerTime1;

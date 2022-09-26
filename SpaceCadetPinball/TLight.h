@@ -1,8 +1,6 @@
 #pragma once
 #include "TPinballComponent.h"
 
-struct gdrv_bitmap8;
-
 struct TLight_player_backup
 {
 	int MessageField;
@@ -17,21 +15,22 @@ class TLight :
 {
 public:
 	TLight(TPinballTable* table, int groupIndex);
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	void Reset();
 	void schedule_timeout(float time);
 	void flasher_stop(int bmpIndex);
 	void flasher_start(bool bmpIndex);
-	void SetSpriteBmp(gdrv_bitmap8* bmp);
+	void SetSpriteBmp(int index);
+	bool light_on() const;
 
 	static void TimerExpired(int timerId, void* caller);
 	static void flasher_callback(int timerId, void* caller);
 	static void UndoTmpOverride(int timerId, void* caller);
 
-	gdrv_bitmap8* BmpArr[2];
-	float FlashDelay[2];
+	int BmpArr[2]{-1};
+	float FlashDelay[2]{};
 	int FlashTimer;
-	bool FlashLightOnFlag;
+	bool FlashLightOnFlag{};
 	bool LightOnFlag{};
 	bool FlasherOnFlag;
 	bool ToggledOffFlag{};
@@ -42,6 +41,6 @@ public:
 	int TimeoutTimer;
 	int UndoOverrideTimer;
 	bool TemporaryOverrideFlag{};
-	gdrv_bitmap8* PreviousBitmap{};
+	int PreviousBitmap = -1;
 	TLight_player_backup PlayerData[4]{};
 };

@@ -56,23 +56,23 @@ TDemo::TDemo(TPinballTable* table, int groupIndex)
 	Edge3 = TEdgeSegment::install_wall(v9, this, &ActiveFlag, visual.CollisionGroup, table->CollisionCompOffset, 1404);
 }
 
-int TDemo::Message(int code, float value)
+int TDemo::Message(MessageCode code, float value)
 {
 	switch (code)
 	{
-	case 1014:
+	case MessageCode::NewGame:
 		if (RestartGameTimer)
 			timer::kill(RestartGameTimer);
 		RestartGameTimer = 0;
 		break;
-	case 1022:
+	case MessageCode::GameOver:
 		if (RestartGameTimer)
 			timer::kill(RestartGameTimer);
 		RestartGameTimer = 0;
 		if (ActiveFlag != 0)
 			RestartGameTimer = timer::set(5.0, this, NewGameRestartTimer);
 		break;
-	case 1024:
+	case MessageCode::Reset:
 		if (FlipLeftTimer)
 			timer::kill(FlipLeftTimer);
 		FlipLeftTimer = 0;
@@ -125,7 +125,7 @@ void TDemo::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 	case 1404:
 		if (!PlungerFlag)
 		{
-			PinballTable->Message(1004, ball->TimeNow);
+			PinballTable->Message(MessageCode::PlungerInputPressed, ball->TimeNow);
 			float time = RandFloat() + 2.0f;
 			PlungerFlag = timer::set(time, this, PlungerRelease);
 		}
@@ -139,14 +139,14 @@ void TDemo::PlungerRelease(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
 	demo->PlungerFlag = 0;
-	demo->PinballTable->Message(1005, pb::time_next);
+	demo->PinballTable->Message(MessageCode::PlungerInputReleased, pb::time_next);
 }
 
 void TDemo::UnFlipRight(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
 	if (demo->FlipRightFlag)
-		demo->PinballTable->Message(1003, pb::time_next);
+		demo->PinballTable->Message(MessageCode::RightFlipperInputReleased, pb::time_next);
 	demo->FlipRightFlag = 0;
 }
 
@@ -154,7 +154,7 @@ void TDemo::UnFlipLeft(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
 	if (demo->FlipLeftFlag)
-		demo->PinballTable->Message(1001, pb::time_next);
+		demo->PinballTable->Message(MessageCode::LeftFlipperInputReleased, pb::time_next);
 	demo->FlipLeftFlag = 0;
 }
 
@@ -168,7 +168,7 @@ void TDemo::FlipRight(int timerId, void* caller)
 			timer::kill(demo->FlipRightTimer);
 			demo->FlipRightTimer = 0;
 		}
-		demo->PinballTable->Message(1002, pb::time_next);
+		demo->PinballTable->Message(MessageCode::RightFlipperInputPressed, pb::time_next);
 		demo->FlipRightFlag = 1;
 		float time = demo->UnFlipTimerTime1 + demo->UnFlipTimerTime2 - RandFloat() *
 			(demo->UnFlipTimerTime2 + demo->UnFlipTimerTime2);
@@ -186,7 +186,7 @@ void TDemo::FlipLeft(int timerId, void* caller)
 			timer::kill(demo->FlipLeftTimer);
 			demo->FlipLeftTimer = 0;
 		}
-		demo->PinballTable->Message(1000, pb::time_next);
+		demo->PinballTable->Message(MessageCode::LeftFlipperInputPressed, pb::time_next);
 		demo->FlipLeftFlag = 1;
 		float time = demo->UnFlipTimerTime1 + demo->UnFlipTimerTime2 - RandFloat() *
 			(demo->UnFlipTimerTime2 + demo->UnFlipTimerTime2);
@@ -198,6 +198,6 @@ void TDemo::NewGameRestartTimer(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
 	pb::replay_level(true);
-	demo->PinballTable->Message(1014, static_cast<float>(demo->PinballTable->PlayerCount));
+	demo->PinballTable->Message(MessageCode::NewGame, static_cast<float>(demo->PinballTable->PlayerCount));
 	demo->RestartGameTimer = 0;
 }

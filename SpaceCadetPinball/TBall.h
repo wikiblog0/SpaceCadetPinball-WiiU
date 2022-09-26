@@ -12,8 +12,9 @@ public :
 	void Repaint();
 	void not_again(TEdgeSegment* edge);
 	bool already_hit(TEdgeSegment* edge);
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	vector2 get_coordinates() override;
+	void Disable();
 
 	static void throw_ball(TBall* ball, vector3* direction, float angleMult, float speedMult1,
 	                       float speedMult2);

@@ -50,9 +50,9 @@ TFlagSpinner::TFlagSpinner(TPinballTable* table, int groupIndex) : TCollisionCom
 		MinSpeed = *minSpeed;
 }
 
-int TFlagSpinner::Message(int code, float value)
+int TFlagSpinner::Message(MessageCode code, float value)
 {
-	if (code == 1024)
+	if (code == MessageCode::Reset)
 	{
 		if (Timer)
 		{
@@ -60,14 +60,7 @@ int TFlagSpinner::Message(int code, float value)
 			Timer = 0;
 		}
 		BmpIndex = 0;
-		auto bmp = ListBitmap->at(0);
-		auto zMap = ListZMap->at(0);
-		render::sprite_set(
-			RenderSprite,
-			bmp,
-			zMap,
-			bmp->XPosition - PinballTable->XOffset,
-			bmp->YPosition - PinballTable->YOffset);
+		SpriteSet(BmpIndex);
 	}
 	return 0;
 }
@@ -104,22 +97,14 @@ void TFlagSpinner::NextFrame()
 
 	if (!PinballTable->TiltLockFlag)
 	{
-		control::handler(63, this);
+		control::handler(MessageCode::ControlCollision, this);
 		if (SoftHitSoundId)
 			loader::play_sound(SoftHitSoundId, this, "TFlagSpinner");
 		if (!BmpIndex)
-			control::handler(62, this);
+			control::handler(MessageCode::ControlSpinnerLoopReset, this);
 	}
 
-	auto bmp = ListBitmap->at(BmpIndex);
-	auto zMap = ListZMap->at(BmpIndex);
-	render::sprite_set(
-		RenderSprite,
-		bmp,
-		zMap,
-		bmp->XPosition - PinballTable->XOffset,
-		bmp->YPosition - PinballTable->YOffset);
-
+	SpriteSet(BmpIndex);
 	Speed *= SpeedDecrement;
 	if (Speed >= MinSpeed)
 	{

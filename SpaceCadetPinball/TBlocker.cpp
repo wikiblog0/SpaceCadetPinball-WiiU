@@ -14,23 +14,23 @@ TBlocker::TBlocker(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 	loader::query_visual(groupIndex, 0, &visual);
 	SoundIndex4 = visual.SoundIndex4;
 	SoundIndex3 = visual.SoundIndex3;
-	TurnOnMsgValue = 55;
-	TurnOffMsgValue = 5;
+	InitialDuration = 55;
+	ExtendedDuration = 5;
 	Threshold = 1000000000.0f;
 	Timer = 0;
 	MessageField = 0;
 	ActiveFlag = 0;
-	render::sprite_set_bitmap(RenderSprite, nullptr);
+	SpriteSet(-1);
 }
 
-int TBlocker::Message(int code, float value)
+int TBlocker::Message(MessageCode code, float value)
 {
 	switch (code)
 	{
-	case 1011:
-	case 1020:
-	case 1024:
-	case 51:
+	case MessageCode::SetTiltLock:
+	case MessageCode::PlayerChanged:
+	case MessageCode::Reset:
+	case MessageCode::TBlockerDisable:
 		if (Timer)
 		{
 			timer::kill(Timer);
@@ -38,29 +38,27 @@ int TBlocker::Message(int code, float value)
 		}
 		MessageField = 0;
 		ActiveFlag = 0;
-		render::sprite_set_bitmap(RenderSprite, nullptr);
-		if (code == 51)
+		SpriteSet(-1);
+		if (code == MessageCode::TBlockerDisable)
 			loader::play_sound(SoundIndex3, this, "TBlocker1");
-		return 0;
-	case 52:
+		break;
+	case MessageCode::TBlockerEnable:
 		ActiveFlag = 1;
 		loader::play_sound(SoundIndex4, this, "TBlocker2");
-		render::sprite_set_bitmap(RenderSprite, ListBitmap->at(0));
+		SpriteSet(0);
+		if (Timer)
+			timer::kill(Timer);
+		Timer = timer::set(std::max(value, 0.0f), this, TimerExpired);
 		break;
-	case 59:
+	case MessageCode::TBlockerRestartTimeout:
+		if (Timer)
+			timer::kill(Timer);
+		Timer = timer::set(std::max(value, 0.0f), this, TimerExpired);
 		break;
 	default:
-		return 0;
+		break;
 	}
-	if (Timer)
-		timer::kill(Timer);
-
-	float timerTime;
-	if (value <= 0.0f)
-		timerTime = 0.0;
-	else
-		timerTime = value;
-	Timer = timer::set(timerTime, this, TimerExpired);
+	
 	return 0;
 }
 
@@ -68,5 +66,5 @@ void TBlocker::TimerExpired(int timerId, void* caller)
 {
 	auto blocker = static_cast<TBlocker*>(caller);
 	blocker->Timer = 0;
-	control::handler(60, blocker);
+	control::handler(MessageCode::ControlTimerExpired, blocker);
 }

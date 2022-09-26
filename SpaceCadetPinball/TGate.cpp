@@ -14,28 +14,29 @@ TGate::TGate(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	SoundIndex4 = visual.SoundIndex4;
 	SoundIndex3 = visual.SoundIndex3;
 	ActiveFlag = 1;
-	render::sprite_set_bitmap(RenderSprite, ListBitmap->at(0));
-	control::handler(1024, this);
+	SpriteSet(0);
+	control::handler(MessageCode::Reset, this);
 }
 
-int TGate::Message(int code, float value)
+int TGate::Message(MessageCode code, float value)
 {
-	if (code != 1020)
+	switch (code)
 	{
-		if (code == 53)
-		{
-			ActiveFlag = 0;
-			render::sprite_set_bitmap(RenderSprite, nullptr);
-			loader::play_sound(SoundIndex3, this, "TGate1");
-		}
-		else if (code == 54 || code == 1024)
-		{
-			ActiveFlag = 1;
-			render::sprite_set_bitmap(RenderSprite, ListBitmap->at(0));
-			if (code == 54)
-				loader::play_sound(SoundIndex4, this, "TGate2");
-		}
-		control::handler(code, this);
+	case MessageCode::TGateDisable:
+		ActiveFlag = 0;
+		SpriteSet(-1);
+		loader::play_sound(SoundIndex3, this, "TGate1");
+		break;
+	case MessageCode::Reset:
+	case MessageCode::TGateEnable:
+		ActiveFlag = 1;
+		SpriteSet(0);
+		if (code == MessageCode::TGateEnable)
+			loader::play_sound(SoundIndex4, this, "TGate2");
+		break;
+	default: break;
 	}
+
+	control::handler(code, this);
 	return 0;
 }

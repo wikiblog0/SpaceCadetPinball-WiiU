@@ -16,18 +16,18 @@ TSoloTarget::TSoloTarget(TPinballTable* table, int groupIndex) : TCollisionCompo
 	TimerTime = 0.1f;
 	loader::query_visual(groupIndex, 0, &visual);
 	SoundIndex4 = visual.SoundIndex4;
-	TSoloTarget::Message(50, 0.0);
+	TSoloTarget::Message(MessageCode::TSoloTargetEnable, 0.0);
 }
 
-int TSoloTarget::Message(int code, float value)
+int TSoloTarget::Message(MessageCode code, float value)
 {
 	switch (code)
 	{
-	case 49:
-	case 50:
-		ActiveFlag = code == 50;
+	case MessageCode::TSoloTargetDisable:
+	case MessageCode::TSoloTargetEnable:
+		ActiveFlag = code == MessageCode::TSoloTargetEnable;
 		break;
-	case 1024:
+	case MessageCode::Reset:
 		if (Timer)
 			timer::kill(Timer);
 		Timer = 0;
@@ -37,19 +37,7 @@ int TSoloTarget::Message(int code, float value)
 		return 0;
 	}
 
-	if (ListBitmap)
-	{
-		auto index = 1 - ActiveFlag;
-		auto bmp = ListBitmap->at(index);
-		auto zMap = ListZMap->at(index);
-		render::sprite_set(
-			RenderSprite,
-			bmp,
-			zMap,
-			bmp->XPosition - PinballTable->XOffset,
-			bmp->YPosition - PinballTable->YOffset);
-	}
-
+	SpriteSet(1 - ActiveFlag);
 	return 0;
 }
 
@@ -58,15 +46,15 @@ void TSoloTarget::Collision(TBall* ball, vector2* nextPosition, vector2* directi
 {
 	if (DefaultCollision(ball, nextPosition, direction))
 	{
-		Message(49, 0.0);
+		Message(MessageCode::TSoloTargetDisable, 0.0);
 		Timer = timer::set(TimerTime, this, TimerExpired);
-		control::handler(63, this);
+		control::handler(MessageCode::ControlCollision, this);
 	}
 }
 
 void TSoloTarget::TimerExpired(int timerId, void* caller)
 {
 	auto target = static_cast<TSoloTarget*>(caller);
-	target->Message(50, 0.0);
+	target->Message(MessageCode::TSoloTargetEnable, 0.0);
 	target->Timer = 0;
 }

@@ -7,13 +7,12 @@ class TSink :
 {
 public:
 	TSink(TPinballTable* table, int groupIndex);
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 	               TEdgeSegment* edge) override;
 
 	static void TimerExpired(int timerId, void* caller);
 
-	int Timer;
 	float TimerTime;
 	vector2 BallPosition{};
 	vector3 BallThrowDirection{};

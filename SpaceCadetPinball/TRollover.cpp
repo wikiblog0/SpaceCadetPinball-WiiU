@@ -19,20 +19,18 @@ TRollover::TRollover(TPinballTable* table, int groupIndex, bool createWall) : TC
 
 TRollover::TRollover(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
-	if (ListBitmap)
-		render::sprite_set_bitmap(RenderSprite, ListBitmap->at(0));
+	SpriteSet(0);
 	build_walls(groupIndex);
 }
 
 
-int TRollover::Message(int code, float value)
+int TRollover::Message(MessageCode code, float value)
 {
-	if (code == 1024)
+	if (code == MessageCode::Reset)
 	{
-		this->ActiveFlag = 1;
-		this->RolloverFlag = 0;
-		if (this->ListBitmap)
-			render::sprite_set_bitmap(this->RenderSprite, this->ListBitmap->at(0));
+		ActiveFlag = 1;
+		RolloverFlag = 0;
+		SpriteSet(0);
 	}
 	return 0;
 }
@@ -44,7 +42,7 @@ void TRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 	ball->Position.Y = nextPosition->Y;
 	ball->RayMaxDistance -= distance;
 	ball->not_again(edge);
-	gdrv_bitmap8* bmp = nullptr;
+	
 	if (!PinballTable->TiltLockFlag)
 	{
 		if (RolloverFlag)
@@ -55,15 +53,10 @@ void TRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 		else
 		{
 			loader::play_sound(SoftHitSoundId, ball, "TRollover");
-			control::handler(63, this);
+			control::handler(MessageCode::ControlCollision, this);
 		}
 		RolloverFlag = RolloverFlag == 0;
-		if (ListBitmap)
-		{
-			if (!RolloverFlag)
-				bmp = ListBitmap->at(0);
-			render::sprite_set_bitmap(RenderSprite, bmp);
-		}
+		SpriteSet(RolloverFlag ? -1 : 0);
 	}
 }
 

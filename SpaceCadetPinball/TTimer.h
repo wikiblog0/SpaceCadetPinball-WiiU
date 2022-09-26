@@ -6,7 +6,7 @@ class TTimer :
 {
 public:
 	TTimer(TPinballTable* table, int groupIndex);
-	int Message(int code, float value) override;
+	int Message(MessageCode code, float value) override;
 	static void TimerExpired(int timerId, void* caller);
 
 	int Timer;

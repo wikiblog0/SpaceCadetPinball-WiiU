@@ -14,30 +14,35 @@ TDrain::TDrain(TPinballTable* table, int groupIndex) : TCollisionComponent(table
 	TimerTime = *loader::query_float_attribute(groupIndex, 0, 407);
 }
 
-int TDrain::Message(int code, float value)
+int TDrain::Message(MessageCode code, float value)
 {
-	if (code == 1024)
+	if (code == MessageCode::Reset)
 	{
 		if (Timer)
 		{
 			timer::kill(Timer);
 			Timer = 0;
 		}
-		PinballTable->BallInSink = 0;
+		PinballTable->BallInDrainFlag = 0;
 	}
 	return 0;
 }
 
 void TDrain::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
-	ball->Message(1024, 0.0);
-	PinballTable->BallInSink = 1;
-	Timer = timer::set(TimerTime, this, TimerCallback);
-	control::handler(63, this);
+	ball->Disable();
+	--PinballTable->MultiballCount;
+	if (PinballTable->MultiballCount <= 0)
+	{
+		PinballTable->MultiballCount = 0;
+		PinballTable->BallInDrainFlag = 1;
+		Timer = timer::set(TimerTime, this, TimerCallback);
+	}
+	control::handler(MessageCode::ControlCollision, this);
 }
 
 void TDrain::TimerCallback(int timerId, void* caller)
 {
 	auto drain = static_cast<TDrain*>(caller);
-	control::handler(60, drain);
+	control::handler(MessageCode::ControlTimerExpired, drain);
 }

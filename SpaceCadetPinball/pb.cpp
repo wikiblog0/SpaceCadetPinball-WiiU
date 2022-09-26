@@ -5,7 +5,6 @@
 #include "control.h"
 #include "fullscrn.h"
 #include "high_score.h"
-#include "pinball.h"
 #include "proj.h"
 #include "render.h"
 #include "loader.h"
@@ -27,6 +26,7 @@
 #include "TFlipper.h"
 #include "TPinballTable.h"
 #include "TTextBox.h"
+#include "translations.h"
 #include "menu.h"
 
 #include <nn/act.h>
@@ -40,7 +40,12 @@ GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::ball_speed_limit, pb::time_ticks_remainder = 0;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false;
 std::string pb::DatFileName;
+std::string pb::DatFileName, pb::BasePath;
+ImU32 pb::TextBoxColor;
+int pb::quickFlag = 0;
+TTextBox *pb::InfoTextBox, *pb::MissTextBox;
 char miiName[nn::act::MiiNameSize * 2 + 1];
+
 
 int pb::init()
 {
@@ -56,16 +61,15 @@ int pb::init()
 	}
 
 	nn::act::Finalize();
-
-	float projMat[12], zMin = 0, zScaler = 0;
+	float projMat[12];
 
 	if (DatFileName.empty())
 		return 1;
-	auto dataFilePath = pinball::make_path_name(DatFileName);
+	auto dataFilePath = make_path_name(DatFileName);
 	record_table = partman::load_records(dataFilePath.c_str(), FullTiltMode);
 
 	auto useBmpFont = 0;
-	pinball::get_rc_int(158, &useBmpFont);
+	get_rc_int(Msg::TextBoxUseBitmapFont, &useBmpFont);
 	if (useBmpFont)
 		score::load_msg_font("pbmsg_ft");
 
@@ -90,12 +94,12 @@ int pb::init()
 		auto projCenterX = resInfo->TableWidth * 0.5f;
 		auto projCenterY = resInfo->TableHeight * 0.5f;
 		auto projD = cameraInfo[0];
-		proj::init(projMat, projD, projCenterX, projCenterY);
-		zMin = cameraInfo[1];
-		zScaler = cameraInfo[2];
+		auto zMin = cameraInfo[1];
+		auto zScaler = cameraInfo[2];
+		proj::init(projMat, projD, projCenterX, projCenterY, zMin, zScaler);
 	}
 
-	render::init(nullptr, zMin, zScaler, resInfo->TableWidth, resInfo->TableHeight);
+	render::init(nullptr, resInfo->TableWidth, resInfo->TableHeight);
 	gdrv::copy_bitmap(
 		render::vscreen,
 		backgroundBmp->Width,
@@ -118,6 +122,13 @@ int pb::init()
 
 	high_score::read();
 	ball_speed_limit = MainTable->BallList.at(0)->Offset * 200.0f;
+
+	int red = 255, green = 255, blue = 255;
+	auto fontColor = get_rc_string(Msg::TextBoxColor);
+	if (fontColor)
+		sscanf(fontColor, "%d %d %d", &red, &green, &blue);
+	TextBoxColor = IM_COL32(red, green, blue, 255);
+
 	return 0;
 }
 
@@ -142,7 +153,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	std::string datFileNames[3]
 	{
 		"CADET.DAT",
-		options::get_string("Pinball Data", pinball::get_rc_string(168, 0)),
+		"PINBALL.DAT",
 		"DEMO.DAT",
 	};
 
@@ -153,10 +164,10 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	{
 		if (DatFileName.empty() && path)
 		{
-			pinball::BasePath = path;
+			BasePath = path;
 			for (auto datFileName : datFileNames)
 			{
-				auto datFilePath = pinball::make_path_name(datFileName);
+				auto datFilePath = make_path_name(datFileName);
 				auto datFile = fopenu(datFilePath.c_str(), "r");
 				if (datFile)
 				{
@@ -178,7 +189,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 void pb::reset_table()
 {
 	if (MainTable)
-		MainTable->Message(1024, 0.0);
+		MainTable->Message(MessageCode::Reset, 0.0);
 }
 
 
@@ -223,7 +234,7 @@ void pb::mode_change(GameModes mode)
 			winmain::DemoActive = false;
 		}
 		if (MainTable && MainTable->LightGroup)
-			MainTable->LightGroup->Message(29, 1.4f);
+			MainTable->LightGroup->Message(MessageCode::TLightGroupGameOverAnimation, 1.4f);
 		break;
 	}
 	game_mode = mode;
@@ -234,11 +245,10 @@ void pb::toggle_demo()
 	if (demo_mode)
 	{
 		demo_mode = false;
-		MainTable->Message(1024, 0.0);
+		MainTable->Message(MessageCode::Reset, 0.0);
 		mode_change(GameModes::GameOver);
-		pinball::MissTextBox->Clear();
-		auto text = pinball::get_rc_string(24, 0);
-		pinball::InfoTextBox->Display(text, -1.0);
+		MissTextBox->Clear();
+		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
 	}
 	else
 	{
@@ -252,17 +262,23 @@ void pb::replay_level(bool demoMode)
 	mode_change(GameModes::InGame);
 	if (options::Options.Music)
 		midi::music_play();
-	MainTable->Message(1014, static_cast<float>(options::Options.Players));
+	MainTable->Message(MessageCode::NewGame, static_cast<float>(options::Options.Players));
 }
 
 void pb::ballset(float dx, float dy)
 {
 	// dx and dy are normalized to window, ideally in [-1, 1]
 	static constexpr float sensitivity = 7000;
-	TBall* ball = MainTable->BallList.at(0);
-	ball->Direction.X = dx * sensitivity;
-	ball->Direction.Y = dy * sensitivity;
-	ball->Speed = maths::normalize_2d(ball->Direction);
+
+	for (auto ball : MainTable->BallList)
+	{
+		if (ball->ActiveFlag)
+		{
+			ball->Direction.X = dx * sensitivity;
+			ball->Direction.Y = dy * sensitivity;
+			ball->Speed = maths::normalize_2d(ball->Direction);
+		}
+	}
 }
 
 void pb::frame(float dtMilliSec)
@@ -300,7 +316,7 @@ void pb::frame(float dtMilliSec)
 	{
 		if (nudge::nudge_count > 0.5f)
 		{
-			pinball::InfoTextBox->Display(pinball::get_rc_string(25, 0), 2.0);
+			InfoTextBox->Display(get_rc_string(Msg::STRING126), 2.0);
 		}
 		if (nudge::nudge_count > 1.0f)
 			MainTable->tilt(time_now);
@@ -372,35 +388,35 @@ void pb::window_size(int* width, int* height)
 void pb::pause_continue()
 {
 	winmain::single_step ^= true;
-	pinball::InfoTextBox->Clear();
-	pinball::MissTextBox->Clear();
+	InfoTextBox->Clear();
+	MissTextBox->Clear();
 	if (winmain::single_step)
 	{
 		if (MainTable)
-			MainTable->Message(1008, time_now);
-		pinball::InfoTextBox->Display(pinball::get_rc_string(22, 0), -1.0);
+			MainTable->Message(MessageCode::Pause, time_now);
+		InfoTextBox->Display(get_rc_string(Msg::STRING123), -1.0);
 		midi::music_stop();
 		Sound::Deactivate();
 	}
 	else
 	{
 		if (MainTable)
-			MainTable->Message(1009, 0.0);
+			MainTable->Message(MessageCode::Resume, 0.0);
 		if (!demo_mode)
 		{
-			char* text;
+			const char* text;
 			float textTime;
 			if (game_mode == GameModes::GameOver)
 			{
 				textTime = -1.0;
-				text = pinball::get_rc_string(24, 0);
+				text = get_rc_string(Msg::STRING125);
 			}
 			else
 			{
 				textTime = 5.0;
-				text = pinball::get_rc_string(23, 0);
+				text = get_rc_string(Msg::STRING124);
 			}
-			pinball::InfoTextBox->Display(text, textTime);
+			InfoTextBox->Display(text, textTime);
 		}
 		if (options::Options.Music && !winmain::single_step)
 			midi::music_play();
@@ -411,7 +427,7 @@ void pb::pause_continue()
 void pb::loose_focus()
 {
 	if (MainTable)
-		MainTable->Message(1010, time_now);
+		MainTable->Message(MessageCode::LooseFocus, time_now);
 }
 
 void pb::InputUp(GameInput input)
@@ -421,15 +437,15 @@ void pb::InputUp(GameInput input)
 
 	if (AnyBindingMatchesInput(options::Options.Key.LeftFlipper, input))
 	{
-		MainTable->Message(1001, time_now);
+		MainTable->Message(MessageCode::LeftFlipperInputReleased, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.RightFlipper, input))
 	{
-		MainTable->Message(1003, time_now);
+		MainTable->Message(MessageCode::RightFlipperInputReleased, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.Plunger, input))
 	{
-		MainTable->Message(1005, time_now);
+		MainTable->Message(MessageCode::PlungerInputReleased, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.LeftTableBump, input))
 	{
@@ -472,15 +488,15 @@ void pb::InputDown(GameInput input)
 
 	if (AnyBindingMatchesInput(options::Options.Key.LeftFlipper, input))
 	{
-		MainTable->Message(1000, time_now);
+		MainTable->Message(MessageCode::LeftFlipperInputPressed, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.RightFlipper, input))
 	{
-		MainTable->Message(1002, time_now);
+		MainTable->Message(MessageCode::RightFlipperInputPressed, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.Plunger, input))
 	{
-		MainTable->Message(1004, time_now);
+		MainTable->Message(MessageCode::PlungerInputPressed, time_now);
 	}
 	if (AnyBindingMatchesInput(options::Options.Key.LeftTableBump, input))
 	{
@@ -508,38 +524,13 @@ void pb::InputDown(GameInput input)
 		switch (input.Value)
 		{
 		case 'b':
-			TBall* ball;
-			if (MainTable->BallList.empty())
-			{
-				ball = new TBall(MainTable);
-			}
-			else
-			{
-				for (auto index = 0u; ;)
-				{
-					ball = MainTable->BallList.at(index);
-					if (!ball->ActiveFlag)
-						break;
-					++index;
-					if (index >= MainTable->BallList.size())
-					{
-						ball = new TBall(MainTable);
-						break;
-					}
-				}
-			}
-			ball->ActiveFlag = 1;
-			ball->Position.X = 1.0;
-			ball->Position.Z = ball->Offset;
-			ball->Position.Y = 1.0;
-			ball->Direction.Z = 0.0;
-			ball->Direction.Y = 0.0;
-			ball->Direction.X = 0.0;
+			if (MainTable->AddBall(6.0f, 7.0f))
+				MainTable->MultiballCount++;
 			break;
 		case 'h':
 		{
 			high_score_struct entry{ {0}, 1000000000 };
-			strncpy(entry.Name, pinball::get_rc_string(26, 0), sizeof entry.Name - 1);
+			strncpy(entry.Name, get_rc_string(Msg::STRING127), sizeof entry.Name - 1);
 			high_score::show_and_set_high_score_dialog({ entry, 1 });
 			break;
 		}
@@ -553,10 +544,10 @@ void pb::InputDown(GameInput input)
 			MainTable->port_draw();
 			break;
 		case 'i':
-			MainTable->LightGroup->Message(-24, 1.0f);
+			MainTable->LightGroup->Message(MessageCode::TLightFtTmpOverrideOn, 1.0f);
 			break;
 		case 'j':
-			MainTable->LightGroup->Message(-25, 1.0f);
+			MainTable->LightGroup->Message(MessageCode::TLightFtTmpOverrideOff, 1.0f);
 			break;
 		}
 	}
@@ -564,7 +555,7 @@ void pb::InputDown(GameInput input)
 
 void pb::launch_ball()
 {
-	MainTable->Plunger->Message(1017, 0.0f);
+	MainTable->Plunger->Message(MessageCode::PlungerLaunchBall, 0.0f);
 }
 
 void pb::end_game()
@@ -614,7 +605,18 @@ void pb::end_game()
 					strncpy(entry.Name, miiName, sizeof entry.Name - 1);
 				} else
 				{
-					strncpy(entry.Name, pinball::get_rc_string(scoreIndex[i] + 26, 0), sizeof entry.Name - 1);
+					const char* playerName = "Player";
+
+					switch(scoreIndex[i])
+					{
+						default:
+						case 0: playerName = get_rc_string(Msg::STRING127); break;
+						case 1: playerName = get_rc_string(Msg::STRING128); break;
+						case 2: playerName = get_rc_string(Msg::STRING129); break;
+						case 3: playerName = get_rc_string(Msg::STRING130); break;
+					}
+
+					strncpy(entry.Name, playerName, sizeof entry.Name - 1);
 				}
 
 				high_score::show_and_set_high_score_dialog({ entry, -1 });
@@ -631,7 +633,7 @@ void pb::high_scores()
 void pb::tilt_no_more()
 {
 	if (MainTable->TiltLockFlag)
-		pinball::InfoTextBox->Clear();
+		InfoTextBox->Clear();
 	MainTable->TiltLockFlag = 0;
 	nudge::nudge_count = -2.0;
 }
@@ -707,4 +709,20 @@ bool pb::AnyBindingMatchesInput(GameInput (&options)[3], GameInput key)
 			return true;
 	}
 	return false;
+}
+
+LPCSTR pb::get_rc_string(Msg uID)
+{
+	return translations::GetTranslation(uID);
+}
+
+int pb::get_rc_int(Msg uID, int* dst)
+{
+	*dst = atoi(get_rc_string(uID));
+	return 1;
+}
+
+std::string pb::make_path_name(const std::string& fileName)
+{
+	return BasePath + fileName;
 }
