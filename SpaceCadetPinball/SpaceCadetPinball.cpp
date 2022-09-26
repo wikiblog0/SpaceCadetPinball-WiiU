@@ -5,8 +5,37 @@
 
 #include "winmain.h"
 
+#include <whb/proc.h>
+#include <whb/log_cafe.h>
+#include <whb/log_udp.h>
+#include <whb/log.h>
+
+#ifdef USE_ROMFS
+#include <romfs-wiiu.h>
+#endif
+
 int MainActual(LPCSTR lpCmdLine)
 {
+	WHBProcInit();
+	WHBLogCafeInit();
+	WHBLogUdpInit();
+	KPADInit();
+	WPADEnableURCC(true);
+	WPADEnableWiiRemote(true);
+#ifdef USE_ROMFS
+	romfsInit();
+#endif
+
+
+	// SDL init
+	SDL_SetMainReady();
+	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
+		SDL_INIT_EVENTS) < 0)
+	{
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
+		return 1;
+	}
+
 	// Todo: get rid of restart to change resolution.
 	int returnCode;
 	do
@@ -14,6 +43,17 @@ int MainActual(LPCSTR lpCmdLine)
 		returnCode = winmain::WinMain(lpCmdLine);
 	}
 	while (winmain::RestartRequested());
+
+	SDL_Quit();
+
+#ifdef USE_ROMFS
+	romfsExit();
+#endif
+	KPADShutdown();
+	WHBLogUdpDeinit();
+	WHBLogCafeDeinit();
+	WHBProcShutdown();
+
 	return returnCode;
 }
 

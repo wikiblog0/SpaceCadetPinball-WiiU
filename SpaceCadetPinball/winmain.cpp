@@ -13,12 +13,7 @@
 #include "menu.h"
 
 #include <whb/proc.h>
-#include <whb/log_cafe.h>
-#include <whb/log_udp.h>
-#include <whb/log.h>
 #include <sys/stat.h>
-#include <vpad/input.h>
-#include <padscore/kpad.h>
 #include <sysapp/switch.h>
 #include <coreinit/debug.h>
 
@@ -64,28 +59,10 @@ bool rightTrigger = false;
 
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
-	WHBProcInit();
-	WHBLogCafeInit();
-	WHBLogUdpInit();
-	KPADInit();
-	WPADEnableURCC(true);
-	WPADEnableWiiRemote(true);
-#ifdef USE_ROMFS
-	romfsInit();
-#endif
 	restart = false;
 	bQuit = false;
 
 	std::set_new_handler(memalloc_failure);
-
-	// SDL init
-	SDL_SetMainReady();
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-		SDL_INIT_EVENTS) < 0)
-	{
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
-		return 1;
-	}
 
 	pb::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
 
@@ -407,14 +384,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	ImGui::DestroyContext();
-	SDL_Quit();
-#ifdef USE_ROMFS
-	romfsExit();
-#endif
-	KPADShutdown();
-	WHBLogUdpDeinit();
-	WHBLogCafeDeinit();
-	WHBProcShutdown();
 
 	return return_value;
 }
