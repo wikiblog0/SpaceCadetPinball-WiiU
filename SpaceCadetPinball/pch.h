@@ -46,12 +46,11 @@ constexpr int MIX_INIT_MID_Proxy =
 	MIX_INIT_FLUIDSYNTH;
 #endif
 
-//https://github.com/ocornut/imgui 7b913db1ce9dd2fd98e5790aa59974dd4496be3b
+//https://github.com/ocornut/imgui 9aae45eb4a05a5a1f96be1ef37eb503a12ceb889
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "imgui_impl_sdl.h"
-//https://github.com/Tyyppi77/imgui_sdl 01deb04b102b6a1c15c7fdec1977a2c96a885e6f
-#include "imgui_sdl.h"
+#include "imgui_impl_wiiu.h"
+#include "imgui_impl_sdlrenderer.h"
 
 typedef char* LPSTR;
 typedef const char* LPCSTR;
