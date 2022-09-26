@@ -55,11 +55,14 @@ Platforms covered by this project: desktop Windows, Linux and macOS.
 
 ### For Wii U
 
-Install devkitPro, then install the `wiiu-dev`, `wiiu-sdl2`, `wiiu-sdl2_mixer`, and `wiiu-cmake` packages.\
-Compile and install [libromfs-wiiu](https://github.com/yawut/libromfs-wiiu).\
-Run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake ..`\
-Drop the pinball game data in `res` and run `make`.\
-To get music to play, convert `PINBALL.MID` to MP3.
+1. Install [devkitPro](https://devkitpro.org/wiki/Getting_Started), then install the `wiiu-dev`, `wiiu-sdl2_mixer`, and `wiiu-cmake` packages.
+2. `git clone --recurse https://github.com/IntriguingTiles/SpaceCadetPinball-WiiU && cd SpaceCadetPinball-WiiU` 
+3. If you're not using Aroma, compile and install [libromfs-wiiu](https://github.com/yawut/libromfs-wiiu).
+4.
+    - For Aroma, run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release ..`
+    - For other environments, run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_ROMFS=yes ..`
+5. Drop the pinball game data in `res` and run `make`.
+6. To get music to play, convert `PINBALL.MID` to MP3.
 
 ## Plans
 

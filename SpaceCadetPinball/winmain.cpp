@@ -12,7 +12,6 @@
 #include "menu.h"
 
 #include <whb/proc.h>
-#include <romfs-wiiu.h>
 #include <whb/log_cafe.h>
 #include <whb/log_udp.h>
 #include <whb/log.h>
@@ -21,6 +20,10 @@
 #include <padscore/kpad.h>
 #include <sysapp/switch.h>
 #include <coreinit/debug.h>
+
+#ifdef USE_ROMFS
+#include <romfs-wiiu.h>
+#endif
 
 SDL_Window* winmain::MainWindow = nullptr;
 SDL_Renderer* winmain::Renderer = nullptr;
@@ -66,7 +69,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	KPADInit();
 	WPADEnableURCC(true);
 	WPADEnableWiiRemote(true);
+#ifdef USE_ROMFS
 	romfsInit();
+#endif
 	restart = false;
 	bQuit = false;
 
@@ -136,19 +141,24 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 	io.IniFilename = "fs:/vol/external01/wiiu/apps/spacecadetpinball/imgui_pb.ini";
 
+	mkdir("fs:/vol/external01/wiiu", 777);
+	mkdir("fs:/vol/external01/wiiu/apps", 777);
+	mkdir("fs:/vol/external01/wiiu/apps/spacecadetpinball", 777);
+
 	// First step: just load the options
 	options::InitPrimary();
 
 	// Data search order: WD, executable path, user pref path, platform specific paths.
-	auto basePath = (char*)"romfs:/";
 	std::vector<const char*> searchPaths
 	{
 		{
-			"",
-			basePath,
+			"fs:/vol/external01/wiiu/apps/spacecadetpinball/data/",
+			"fs:/vol/content/",
+#ifdef USE_ROMFS
+			"romfs:/"
+#endif
 		}
 	};
-	searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 	pb::SelectDatFile(searchPaths);
 
 	// Second step: run updates depending on FullTiltMode
@@ -367,7 +377,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	SDL_DestroyWindow(window);
 	ImGui::DestroyContext();
 	SDL_Quit();
+#ifdef USE_ROMFS
 	romfsExit();
+#endif
 	KPADShutdown();
 	WHBLogUdpDeinit();
 	WHBLogCafeDeinit();

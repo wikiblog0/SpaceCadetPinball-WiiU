@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(SpaceCadetPinball)
-include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
+
+if(USE_ROMFS)
+        include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
+endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -53,6 +56,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/loader.h
         SpaceCadetPinball/maths.cpp
         SpaceCadetPinball/maths.h
+        SpaceCadetPinball/menu.cpp
+        SpaceCadetPinball/menu.h
         SpaceCadetPinball/midi.cpp
         SpaceCadetPinball/midi.h
         SpaceCadetPinball/nudge.cpp
@@ -184,8 +189,22 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
-romfs_add(SpaceCadetPinball "res")
+
+if(USE_ROMFS)
+        romfs_add(SpaceCadetPinball "res")
+        target_compile_definitions(SpaceCadetPinball PUBLIC USE_ROMFS)
+else()
+        set(CONTENT_DIR res)
+endif()
+
 wut_create_rpx(SpaceCadetPinball)
+wut_create_wuhb(SpaceCadetPinball
+        NAME        "3D Pinball for Windows - Space Cadet"
+        SHORTNAME   "3D Pinball"
+        AUTHOR      "k4zmu2a / IntriguingTiles"
+        ICON        SpaceCadetPinball/Icon_128x128.png
+        CONTENT     ${CONTENT_DIR}
+)
 
 # Skip pch on foreign code
 set_source_files_properties(
