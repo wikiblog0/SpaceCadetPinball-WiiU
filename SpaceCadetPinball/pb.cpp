@@ -28,6 +28,10 @@
 #include "TPinballTable.h"
 #include "TTextBox.h"
 
+#include <nn/act.h>
+#include <locale>
+#include <codecvt>
+
 TPinballTable* pb::MainTable = nullptr;
 DatFile* pb::record_table = nullptr;
 int pb::time_ticks = 0;
@@ -35,10 +39,23 @@ GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::ball_speed_limit, pb::time_ticks_remainder = 0;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false;
 std::string pb::DatFileName;
-
+char miiName[nn::act::MiiNameSize * 2 + 1];
 
 int pb::init()
 {
+	nn::act::Initialize();
+	char16_t miiName16[nn::act::MiiNameSize];
+	nn::Result result = nn::act::GetMiiName((int16_t*)miiName16);
+
+	if (result.IsSuccess())
+	{
+        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert; 
+		std::string miiNameStr = convert.to_bytes(miiName16);
+		strncpy(miiName, miiNameStr.c_str(), sizeof(miiName));
+	}
+
+	nn::act::Finalize();
+
 	float projMat[12], zMin = 0, zScaler = 0;
 
 	if (DatFileName.empty())
@@ -573,7 +590,15 @@ void pb::end_game()
 			if (position >= 0)
 			{
 				high_score_struct entry{ {0}, scores[i] };
+
+				if (strlen(miiName) > 0)
+				{
+					strncpy(entry.Name, miiName, sizeof entry.Name - 1);
+				} else
+				{
 				strncpy(entry.Name, pinball::get_rc_string(scoreIndex[i] + 26, 0), sizeof entry.Name - 1);
+				}
+
 				high_score::show_and_set_high_score_dialog({ entry, -1 });
 			}
 		}
