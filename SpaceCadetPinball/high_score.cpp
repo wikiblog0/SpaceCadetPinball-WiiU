@@ -103,6 +103,8 @@ void high_score::place_new_score_into(high_score_entry data)
 		data.Entry.Name[31] = 0;
 		highscore_table[data.Position] = data.Entry;
 	}
+
+	high_score::write();
 }
 
 void high_score::show_high_score_dialog()
