@@ -17,6 +17,9 @@
 #include <sysapp/switch.h>
 #include <coreinit/debug.h>
 
+#include <locale>
+#include <codecvt>
+
 #ifdef USE_ROMFS
 #include <romfs-wiiu.h>
 #endif
@@ -58,7 +61,7 @@ WelfordState winmain::SleepState{};
 bool leftTrigger = false;
 bool rightTrigger = false;
 
-int winmain::WinMain(LPCSTR lpCmdLine)
+int winmain::WinMain(LPCSTR lpCmdLine, char16_t* errorMessage)
 {
 	restart = false;
 	bQuit = false;
@@ -181,20 +184,31 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	if (pb::init())
 	{
-		std::string message = "The .dat file is missing.\n"
-			"Make sure that the game data is present in any of the following locations:\n";
+		std::u16string message = u"The .dat file is missing.\n\n"
+			"Make sure that the game data is present in any of the following locations:";
+		std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert; 
 		for (auto path : searchPaths)
 		{
 			if (path)
 			{
-				message = message + (path[0] ? path : "working directory") + "\n";
+				std::u16string u16Path = convert.from_bytes((path[0] ? path : "working directory"));
+				// make the sd card path user-friendly
+				if (u16Path.find(u"fs:/vol/external01/") != std::string::npos) u16Path.replace(u16Path.find(u"fs:/vol/external01/"), (sizeof(u"fs:/vol/external01/") - 1) / 2, u"sd:/");
+				message = message + u"\n" + u16Path;
 			}
 		}
-		char buffer[2048];
-		sprintf(buffer, "Could not load game data: %s", message.c_str());
-		// TODO: replace this with OSScreen or something
-		OSFatal(buffer);
-		while (true) {}
+
+		// probably a bad idea but it works
+		const char16_t* data = message.c_str();
+		memcpy(errorMessage, data, message.length() * 2);
+		
+		// deinit whatever we initted before this
+		Sound::Close();
+		ImGui_ImplSDLRenderer_Shutdown();
+		ImGui_ImplWiiU_Shutdown();
+		SDL_DestroyRenderer(renderer);
+		SDL_DestroyWindow(window);
+		ImGui::DestroyContext();
 		return 1;
 	}
 

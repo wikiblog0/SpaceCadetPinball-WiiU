@@ -76,7 +76,7 @@ public:
 	static bool DemoActive;
 	static int MainMenuHeight;
 
-	static int WinMain(LPCSTR lpCmdLine);
+	static int WinMain(LPCSTR lpCmdLine, char16_t* errorMessage);
 	static int event_handler(const SDL_Event* event);
 	[[ noreturn ]] static void memalloc_failure();
 	static int ProcessWindowMessages();
