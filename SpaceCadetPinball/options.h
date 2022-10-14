@@ -98,6 +98,7 @@ struct optionsStruct
 	bool DebugOverlayCollisionMask;
 	bool DebugOverlaySprites;
 	bool DebugOverlaySounds;
+	bool DebugOverlayBallDepthGrid;
 	std::string FontFileName;
 };
 

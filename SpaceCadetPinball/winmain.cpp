@@ -47,7 +47,8 @@ bool winmain::LaunchBallEnabled = true;
 bool winmain::HighScoresEnabled = true;
 bool winmain::DemoActive = false;
 int winmain::MainMenuHeight = 0;
-std::string winmain::FpsDetails;
+std::string winmain::FpsDetails, winmain::PrevSdlError;
+unsigned winmain::PrevSdlErrorCount = 0;
 double winmain::UpdateToFrameRatio;
 winmain::DurationMs winmain::TargetFrameTime;
 optionsStruct& winmain::Options = options::Options;
@@ -126,7 +127,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	// First step: just load the options
 	options::InitPrimary();
 
-	if(!Options.FontFileName.empty()) 
+	if (!Options.FontFileName.empty())
 	{
 		ImGui_ImplSDLRenderer_DestroyFontsTexture();
 		io.Fonts->Clear();
@@ -342,10 +343,28 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			}
 
 			auto sdlError = SDL_GetError();
-			if (sdlError[0])
+			if (sdlError[0] || !PrevSdlError.empty())
 			{
-				SDL_ClearError();
-				printf("SDL Error: %s\n", sdlError);
+				if (sdlError[0])
+					SDL_ClearError();
+
+				// Rate limit duplicate SDL error messages.
+				if (sdlError != PrevSdlError)
+				{
+					PrevSdlError = sdlError;
+					if (PrevSdlErrorCount > 0)
+					{
+						printf("SDL Error: ^ Previous Error Repeated %u Times\n", PrevSdlErrorCount + 1);
+						PrevSdlErrorCount = 0;
+					}
+
+					if (sdlError[0])
+						printf("SDL Error: %s\n", sdlError);
+				}
+				else
+				{
+					PrevSdlErrorCount++;
+				}
 			}
 
 			auto updateEnd = Clock::now();
@@ -366,11 +385,17 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			}
 
 			// Limit duration to 2 * target time
-			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime, TargetFrameTime);
+			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
+			                       TargetFrameTime);
 			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart), 2 * TargetFrameTime);
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
 		}
+	}
+
+	if (PrevSdlErrorCount > 0)
+	{
+		printf("SDL Error: ^ Previous Error Repeated %u Times\n", PrevSdlErrorCount);
 	}
 
 	delete gfr_display;
@@ -433,7 +458,7 @@ void winmain::RenderUi()
 	options::RenderControlDialog();
 	if (DispGRhistory)
 		RenderFrameTimeDialog();
-	
+
 	// Print game texts on the sidebar
 	gdrv::grtext_draw_ttext_in_box();
 }

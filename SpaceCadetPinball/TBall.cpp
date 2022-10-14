@@ -30,7 +30,7 @@ TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 	Position.X = 0.0;
 	Position.Y = 0.0;
 
-	ListBitmap = new std::vector<gdrv_bitmap8*>();
+	ListBitmap = new std::vector<SpriteData>();
 
 	/*Full tilt: ball is ballN, where N[0,2] resolution*/
 	auto groupIndex = loader::query_handle(ballGroupName);
@@ -54,6 +54,7 @@ TBall::TBall(TPinballTable* table) : TPinballComponent(table, -1, false)
 	RenderSprite = new render_sprite(VisualTypes::Ball, nullptr, nullptr, 0, 0, nullptr);
 	PinballTable->CollisionCompOffset = Offset;
 	Position.Z = Offset;
+	GroupIndex = groupIndex;
 }
 
 void TBall::Repaint()
