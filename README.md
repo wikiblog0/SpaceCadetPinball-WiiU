@@ -2,16 +2,16 @@
 
 # SpaceCadetPinball
 
-## Summary
+## Resumen
 
-Reverse engineering of `3D Pinball for Windows - Space Cadet`, a game bundled with Windows.
+Ingenieria Inversa del juego `3D Pinball for Windows - Space Cadet`, para portearlo a diferentes plataformas.
 
-## How to play
+## Como Jugar
 
-Place compiled executable into a folder containing original game resources (not included).\
-Supports data files from Windows and Full Tilt versions of the game.
+Pon el ejecutable de la plataforma que vas a utilizar junto con los archivos del juego (no incluido).\
+Compatible con los datos de juego de la version de Windows y la version completa del juego.
 
-## Known source ports
+## Ports conocidos
 
 | Platform           | Author          | URL                                                                                                        |
 | ------------------ | --------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -28,56 +28,28 @@ Supports data files from Windows and Full Tilt versions of the game.
 | Android (WIP)      | fexed           | https://github.com/fexed/Pinball-on-Android                                                                |
 | Web                | stech11845      | https://github.com/stech11845/SpaceCadetPinball-web
 
-Platforms covered by this project: desktop Windows, Linux and macOS.
+Plataformas cubiertas por este proyecto: Wii U.
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
 
-## Source
 
-* `pinball.exe` from `Windows XP` (SHA-1 `2A5B525E0F631BB6107639E2A69DF15986FB0D05`) and its public PDB
-* `CADET.EXE` 32bit version from `Full Tilt! Pinball` (SHA-1 `3F7B5699074B83FD713657CD94671F2156DBEDC4`)
+## Fuente
 
-## Tools used
+* `pinball.exe` de `Windows XP` (SHA-1 `2A5B525E0F631BB6107639E2A69DF15986FB0D05`) and its public PDB
+* `CADET.EXE` version de 32 bit de `Full Tilt! Pinball` (SHA-1 `3F7B5699074B83FD713657CD94671F2156DBEDC4`)
+
+## Herramientas usadas
 
 `Ghidra`, `Ida`, `Visual Studio`
 
-## What was done
+## Compilando
 
-* All structures were populated, globals and locals named.
-* All subs were decompiled, C pseudo code was converted to compilable C++. Loose (namespace?) subs were assigned to classes.
+### Para Wii U
 
-## Compiling
-
-### For Wii U
-
-1. Install [devkitPro](https://devkitpro.org/wiki/Getting_Started), then install the `wiiu-dev`, `wiiu-sdl2_mixer`, and `wiiu-cmake` packages.
+1. Instalar [devkitPro](https://devkitpro.org/wiki/Getting_Started), luego instalar los paquetes `wiiu-dev`, `wiiu-sdl2_mixer`, y `wiiu-cmake`.
 2. `git clone --recurse https://github.com/IntriguingTiles/SpaceCadetPinball-WiiU && cd SpaceCadetPinball-WiiU` 
-3. If you're not using Aroma, compile and install [libromfs-wiiu](https://github.com/yawut/libromfs-wiiu).
+3. Si no esta usando Aroma, compile e instale [libromfs-wiiu](https://github.com/yawut/libromfs-wiiu).
 4.
-    - For Aroma, run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release ..`
-    - For other environments, run `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_ROMFS=yes ..`
-5. Drop the pinball game data in `res` and run `make`.
-6. To get music to play, convert `PINBALL.MID` to MP3.
-
-## Plans
-
-* ~~Decompile original game~~
-* ~~Resizable window, scaled graphics~~
-* ~~Loader for high-res sprites from CADET.DAT~~
-* ~~Cross-platform port using SDL2, SDL2_mixer, ImGui~~
-* Misc features of Full Tilt: 3 music tracks, multiball, centered textboxes, etc.
-* Maybe: Text translations
-* Maybe: Android port
-* Maybe x2: support for other two tables
-  * Table specific BL (control interactions and missions) is hardcoded, othere parts might be also patched
-
-## On 64-bit bug that killed the game
-
-I did not find it, decompiled game worked in x64 mode on the first try.\
-It was either lost in decompilation or introduced in x64 port/not present in x86 build.\
-Based on public description of the bug (no ball collision), I guess that the bug was in `TEdgeManager::TestGridBox`
+    - Para Aroma, ejecute `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release ..`
+    - Para otros cfw de Wii U, ejecute `mkdir build && cd build && $DEVKITPRO/portlibs/wiiu/bin/powerpc-eabi-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_ROMFS=yes ..`
+5. Ponga la data del juego de pinball en `res` y ejecute `make`.
+6. Para poner la musica del juego, convierta `PINBALL.MID` a MP3.
